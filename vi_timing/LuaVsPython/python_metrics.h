@@ -1,0 +1,7 @@
+#ifndef VI_TIMING_LUAVSPYTHON_PYTHON_METRICS_H_
+#define VI_TIMING_LUAVSPYTHON_PYTHON_METRICS_H_
+#	pragma once
+
+void python_test();
+
+#endif // #ifndef VI_TIMING_LUAVSPYTHON_PYTHON_METRICS_H__
