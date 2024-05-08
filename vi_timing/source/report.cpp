@@ -64,8 +64,7 @@ namespace
 
 		double result = num;
 		if (num >= 0 && prec > dec && prec <= 3 + dec)
-		{
-			auto power = static_cast<signed char>(std::floor(std::log10(num)));
+		{	auto power = static_cast<signed char>(std::floor(std::log10(num)));
 			auto t = 1U + (3 + power % 3) % 3;
 			if (prec > t)
 			{	t += std::min(dec, static_cast<unsigned char>(prec - t));
@@ -311,7 +310,7 @@ namespace
 	{	return ch::steady_clock::now();
 	}
 
-	void warming(int all, ch::milliseconds ms)
+	void warming(bool all, ch::milliseconds ms)
 	{
 		if (ms.count())
 		{
@@ -319,7 +318,7 @@ namespace
 			auto load = [&done] {while (!done) {/**/ }}; //-V776
 
 			const auto hwcnt = std::thread::hardware_concurrency();
-			std::vector<std::thread> threads((0 != all && 1 < hwcnt) ? hwcnt - 1 : 0);
+			std::vector<std::thread> threads((all && 1 < hwcnt) ? hwcnt - 1 : 0);
 			for (auto& t : threads)
 			{	t = std::thread{ load };
 			}
@@ -336,27 +335,30 @@ namespace
 		}
 	}
 
+	constexpr auto cache_warmup = 5U;
+
 	duration_t seconds_per_tick()
 	{
 		auto get_pair = []
-		{	std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
-			vi_tmGetTicks(); // Preloading a function into cache
-			now(); // Preloading a function into cache
+			{	std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
+				for (auto n = 0U; n < cache_warmup; ++n) // Cache warm-up.
+				{	(void)now();
+					(void)vi_tmGetTicks();
+				}
 
-			// Are waiting for the start of a new time interval.
-			auto next = now();
-			for (const auto prev = next; prev >= next; )
-			{	next = now();
-			}
+				// Are waiting for the start of a new time interval.
+				auto next = now();
+				for (const auto prev = next; prev >= next; )
+				{	next = now();
+				}
 
-			return std::tuple{ vi_tmGetTicks(), next };
-		};
+				return std::tuple{ vi_tmGetTicks(), next };
+			};
 
 		const auto [tick1, time1] = get_pair();
 		// Load the thread at 100% for 256ms.
 		for (auto stop = time1 + 256ms; now() < stop;)
-		{/**/
-		}
+		{/**/}
 		const auto [tick2, time2] = get_pair();
 
 		return duration_t(time2 - time1) / (tick2 - tick1);
@@ -376,22 +378,26 @@ namespace
 
 		auto start = []
 		{	std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
-			equal(); // Preload function and create a service item with empty name "".
+			for (auto n = 0U; n < cache_warmup; ++n) // Cache warm-up.
+			{	equal(); // Preload function and create a service item with empty name ""!
+				(void)now();
+			}
 			// Are waiting for the start of a new time interval.
 			auto next = now();
-			for (const auto prev = next; next <= prev; )
-			{	next = now();
-			}
+			for (const auto prev = next; next <= prev; next = now())
+			{/**/}
 			return next;
 		};
 
+		// The first measurement is made to determine the pure time of the function call.
 		auto s = start();
 		for (unsigned int cnt = 0; cnt < CNT; ++cnt)
 		{	equal();
 		}
 		auto e = now();
-		const auto diff1 = e - s;
+		const auto pure = e - s;
 
+		// The second measurement is made to determine the dirty time of the function call.
 		static constexpr auto CNT_EXT = 20U;
 		s = start();
 		for (size_t cnt = 0; cnt < CNT; ++cnt)
@@ -404,62 +410,74 @@ namespace
 			equal(); equal(); equal(); equal(); equal();
 		}
 		e = now();
-		const auto diff2 = e - s;
+		const auto dirty = e - s;
 
-		assert(diff2 > diff1);
-		const auto diff = diff2 - diff1;
+		assert(dirty > pure);
+		const auto diff = dirty - pure;
 		return duration_t{ std::max(decltype(diff){0}, diff) / static_cast<double>(CNT * CNT_EXT) };
 	}
 
 	double overmeasure()
 	{
 		constexpr auto CNT = 100U;
-		constexpr auto CNT_EXT = 20U;
+		constexpr auto CNT_EXT = 4U;
 
-		std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
-		auto s = vi_tmGetTicks(); // Preloading a function into cache
-		volatile auto e = s;
-		while (e >= s)
-		{	s = vi_tmGetTicks();
-		}
+		auto start = []
+			{	std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
+				vi_tmTicks_t result;
+				// Cache warm-up.
+				for (auto n = 0U; n < cache_warmup; ++n)
+				{	result = vi_tmGetTicks();
+				}
+				// Waiting for the time interval to begin.
+				for (const auto prev = result; prev >= result; result = vi_tmGetTicks())
+				{/**/}
+				return result;
+			};
+
+		vi_tmTicks_t s = start();
+
+		// The first measurement is made to determine the pure time of the function call.
+		volatile vi_tmTicks_t e = s;
 		for (auto cnt = 0; cnt < CNT; ++cnt)
 		{	e = vi_tmGetTicks();
+			e = vi_tmGetTicks();
 		}
 		const auto pure = e - s;
 
-		std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
-		s = vi_tmGetTicks(); // Preloading a function into cache
-		e = s;
-		while (e >= s)
-		{	s = vi_tmGetTicks();
-		}
+		// The second measurement is made to determine the dirty time of the function call.
+		e = s = start();
 		for (auto cnt = 0; cnt < CNT; ++cnt)
 		{	e = vi_tmGetTicks(); //-V761
+			e = vi_tmGetTicks();
 
 			// CNT_EXT calls
-			e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks();
-			e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks();
-			e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks();
-			e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks(); e = vi_tmGetTicks();
+			e = vi_tmGetTicks();
+			e = vi_tmGetTicks();
+			e = vi_tmGetTicks();
+			e = vi_tmGetTicks();
 		}
 		const auto dirty = e - s;
 
 		assert(dirty > pure);
-
 		return (dirty <= pure) ? 0.0 : static_cast<double>(dirty - pure) / (CNT_EXT * CNT);
 	}
 
 	double discreteness()
-	{	constexpr auto CNT = 5U;
+	{	auto CNT = 64U;
+		vi_tmTicks_t last, first;
 		std::this_thread::yield(); // Reduce the likelihood of interrupting measurements by switching threads.
-		const auto first = vi_tmGetTicks();
-		auto last = first;
+		for (auto n = 0U; n < cache_warmup; ++n) // Cache warm-up.
+		{	last = first = vi_tmGetTicks(); // Preloading a function into cache
+		}
+
 		for (auto cnt = CNT; cnt; )
 		{	if (const auto c = vi_tmGetTicks(); c != last)
 			{	last = c;
 				--cnt;
 			}
 		}
+
 		return static_cast<double>(last - first) / static_cast<double>(CNT);
 	}
 

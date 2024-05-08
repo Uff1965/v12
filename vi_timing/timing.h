@@ -38,6 +38,8 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 
 #ifdef _MSC_VER
 #	include <intrin.h> // For __rdtscp
+#elif defined(__GNUC__)
+#   include <x86intrin.h>
 #endif
 
 #ifdef __cplusplus
@@ -52,12 +54,6 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #endif
 
 #include "common.h"
-
-#if !defined(__cplusplus) && defined( __STDC_NO_ATOMICS__)
-// "<...> we left out support for some C11 optional features such as atomics <...>" [Microsoft]
-//	[https://devblogs.microsoft.com/cppblog/c11-atomics-in-visual-studio-2022-version-17-5-preview-2]
-#	error "Atomic objects and the atomic operation library are not supported."
-#endif
 
 // Define VI_TM_CALL and VI_TM_API vvvvvvvvvvvvvv
 #if defined(_WIN32) // Windows x86 or x64
@@ -92,8 +88,13 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 typedef VI_STD(uint64_t) vi_tmTicks_t;
 typedef int (VI_SYS_CALL *vi_tmLogRAW_t)(const char* name, vi_tmTicks_t time, VI_STD(size_t) amount, VI_STD(size_t) calls_cnt, void* data);
 typedef int (VI_SYS_CALL *vi_tmLogSTR_t)(const char* str, void* data); // Must be compatible with std::fputs!
+
 #ifdef __cplusplus
 	using vi_tmAtomicTicks_t = std::atomic<vi_tmTicks_t>;
+#elif defined( __STDC_NO_ATOMICS__)
+	// "<...> we left out support for some C11 optional features such as atomics <...>" [Microsoft]
+	//	[https://devblogs.microsoft.com/cppblog/c11-atomics-in-visual-studio-2022-version-17-5-preview-2]
+#	error "Atomic objects and the atomic operation library are not supported."
 #else
 	typedef _Atomic(vi_tmTicks_t) vi_tmAtomicTicks_t;
 #endif
@@ -104,20 +105,26 @@ extern "C" {
 
 // Definition of vi_tmGetTicks() function for different platforms. vvvvvvvvvvvv
 #if defined(vi_tmGetTicks)
-// Custom define
+// vi_tmGetTicks is already defined.
 #else
 #	if defined(_M_X64) || defined(_M_AMD64) // MS compiler on Intel
-#		pragma intrinsic(__rdtscp)
+#		pragma intrinsic(__rdtscp, _mm_lfence)
 		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
 		{	unsigned int _;
-			return __rdtscp(&_);
+			unsigned __int64 result = __rdtscp(&_);
+			_mm_lfence();
+			return result;
 		}
 #	elif defined(__x86_64__) || defined(__amd64__) // GNU on Intel
 		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
 		{	VI_STD(uint32_t) aux;
-			VI_STD(uint64_t) low, high;
-			__asm__ volatile("rdtscp\n" : "=a" (low), "=d" (high), "=c" (aux));
-			return (high << 32) | low;
+//			VI_STD(uint64_t) low, high;
+//			__asm__ volatile("rdtscp" : "=a" (low), "=d" (high), "=c" (aux));
+//			__asm__ volatile("lfence" ::: "memory");
+//			return (high << 32) | low;
+			VI_STD(uint64_t) result = __rdtscp(&aux);
+			_mm_lfence();
+			return result;
 		}
 #	elif __ARM_ARCH >= 8 // ARMv8 (RaspberryPi4)
 		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
