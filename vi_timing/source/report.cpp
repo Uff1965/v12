@@ -179,75 +179,6 @@ namespace
 		}
 		static constexpr samples[] =
 		{
-			{__LINE__, 0s, "0.0ps"},
-			{__LINE__, 0.01234567891s, "12.346ms", 6, 3},
-			{__LINE__, 0.01234567891s, "12.35ms", 5, 2},
-			{__LINE__, 0.1_ps, "0.0ps"},
-			{__LINE__, 1_ps, "0.0ps"}, // The lower limit of accuracy is 10ps.
-			{__LINE__, 10.01ms, "10.0ms"},
-			{__LINE__, 10.1ms, "10.0ms"},
-			{__LINE__, 10_ps, "10.0ps"},
-			{__LINE__, 100_ps, "100.0ps"},
-			{__LINE__, 100ms, "100.0ms"},
-			{__LINE__, 100ns, "100.0ns"},
-			{__LINE__, 100s, "100.0s "},
-			{__LINE__, 100us, "100.0us"},
-			{__LINE__, 10ms, "10.0ms"},
-			{__LINE__, 10ns, "10.0ns"},
-			{__LINE__, 10s, "10.0s "},
-			{__LINE__, 10us, "10.0us"},
-			{__LINE__, 12.34567891s, "12.346s ", 6, 3},
-			{__LINE__, 12.34567891s, "12.35s ", 5, 2},
-			{__LINE__, 123.456789_ks, "123.457ks", 6, 3},
-			{__LINE__, 123.4ns, "100ns", 1, 0},
-			{__LINE__, 123.4ns, "120.0ns", 2, 1},
-			{__LINE__, 123.4ns, "120.0ns", 2},
-			{__LINE__, 123.4ns, "123.00ns", 3, 2},
-			{__LINE__, 123.4ns, "123.0ns", 3},
-			{__LINE__, 123.4ns, "123.40ns", 4, 2},
-			{__LINE__, 123.4ns, "123.4ns", 4},
-			{__LINE__, 1234.56789_ks, "1.2Ms", 3, 1},
-			{__LINE__, 1h, "3.6ks"},
-			{__LINE__, 1min, "60.0s "},
-			{__LINE__, 1ms, "1.0ms"},
-			{__LINE__, 1ns, "1.0ns"},
-			{__LINE__, 1s, "1.0s "},
-			{__LINE__, 1us, "1.0us"},
-			{__LINE__, 4.499999999999ns, "4.50ns", 3, 2},
-			{__LINE__, 4.499999999999ns, "4.50ns", 4, 2},
-			{__LINE__, 4.499999999999ns, "4.5ns", 2, 1},
-			{__LINE__, 4.499999999999ns, "4.5ns", 2},
-			{__LINE__, 4.499999999999ns, "4.5ns", 3},
-			{__LINE__, 4.499999999999ns, "4.5ns", 4},
-			{__LINE__, 4.499999999999ns, "4ns", 1, 0},
-			{__LINE__, 4.999999999999_ps, "0.00ps", 3, 2},
-			{__LINE__, 4.999999999999_ps, "0.00ps", 4, 2},
-			{__LINE__, 4.999999999999_ps, "0.0ps", 2, 1},
-			{__LINE__, 4.999999999999_ps, "0.0ps", 2},
-			{__LINE__, 4.999999999999_ps, "0.0ps", 3},
-			{__LINE__, 4.999999999999_ps, "0.0ps", 4},
-			{__LINE__, 4.999999999999_ps, "0ps", 1, 0},
-			{__LINE__, 4.999999999999ns, "5.00ns", 3, 2},
-			{__LINE__, 4.999999999999ns, "5.00ns", 4, 2},
-			{__LINE__, 4.999999999999ns, "5.0ns", 2, 1},
-			{__LINE__, 4.999999999999ns, "5.0ns", 2},
-			{__LINE__, 4.999999999999ns, "5.0ns", 3},
-			{__LINE__, 4.999999999999ns, "5.0ns", 4},
-			{__LINE__, 4.999999999999ns, "5ns", 1, 0},
-			{__LINE__, 5.000000000000_ps, "0.00ps", 3, 2},
-			{__LINE__, 5.000000000000_ps, "0.00ps", 4, 2},
-			{__LINE__, 5.000000000000_ps, "0.0ps", 2},
-			{__LINE__, 5.000000000000_ps, "0.0ps", 3},
-			{__LINE__, 5.000000000000_ps, "0.0ps", 4},
-			{__LINE__, 5.000000000000_ps, "0ps", 1, 0},
-			{__LINE__, 5.000000000000ns, "5.00ns", 3, 2},
-			{__LINE__, 5.000000000000ns, "5.00ns", 4, 2},
-			{__LINE__, 5.000000000000ns, "5.0ns", 2, 1},
-			{__LINE__, 5.000000000000ns, "5.0ns", 2},
-			{__LINE__, 5.000000000000ns, "5.0ns", 3},
-			{__LINE__, 5.000000000000ns, "5.0ns", 4},
-			{__LINE__, 5.000000000000ns, "5ns", 1, 0},
-			//**********************************
 			{__LINE__, 0.0_ps, "0.0ps"},
 			{__LINE__, 0.123456789us, "123.5ns", 4},
 			{__LINE__, 1.23456789s, "1s ", 1, 0},
@@ -688,19 +619,27 @@ int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill
 	std::ostringstream str;
 	str.fill(pg.fill_);
 
-	pg.left_ && str << pg.left_ << pg.fill_;
+	if(pg.left_)
+		str << pg.left_ << pg.fill_;
 	str << std::setw(number_len_) << strings.number_ << pg.fill_;
-	pg.middle_ && str << pg.middle_ << pg.fill_;
-	fill_name && str << std::setfill(fill_name);
+	if (pg.middle_)
+		str << pg.middle_ << pg.fill_;
+	if(fill_name)
+		str.fill(fill_name);
 	str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_;
-	fill_name && str << std::setfill(pg.fill_);
-	pg.middle_ && str << pg.middle_ << pg.fill_;
+	if(fill_name)
+		str.fill(pg.fill_);
+	if (pg.middle_)
+		str << pg.middle_ << pg.fill_;
 	str << std::setw(traits_.max_len_average_) << std::right << strings.average_ << pg.fill_;
-	pg.middle_ && str << pg.middle_ << pg.fill_;
+	if (pg.middle_)
+		str << pg.middle_ << pg.fill_;
 	str << std::setw(traits_.max_len_total_) << strings.total_ << pg.fill_;
-	pg.middle_ && str << pg.middle_ << pg.fill_;
+	if (pg.middle_)
+		str << pg.middle_ << pg.fill_;
 	str << std::setw(traits_.max_len_amount_) << strings.amount_;
-	pg.right_ && str << pg.fill_ << pg.right_;
+	if (pg.right_)
+		str << pg.fill_ << pg.right_;
 	str << "\n";
 
 	auto buff = str.str();
@@ -742,14 +681,14 @@ int meterage_format_t::header() const
 	auto result = 0;
 
 	if(auto& pg = pg_[1]; pg.fill_)
-		result += print(empty, pg);
-
+	{	result += print(empty, pg);
+	}
 	if (auto& pg = pg_[0]; pg.fill_)
-		result += print(strings, pg);
-
+	{	result += print(strings, pg);
+	}
 	if (auto& pg = pg_[2]; pg.fill_)
-		result += print(empty, pg);
-
+	{	result += print(empty, pg);
+	}
 	return result;
 }
 
