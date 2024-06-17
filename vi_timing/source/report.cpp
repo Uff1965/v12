@@ -626,7 +626,7 @@ namespace
 		const traits_t& traits_;
 		const vi_tmLogSTR_t fn_;
 		void* const data_;
-		std::size_t number_len_{0};
+		std::size_t number_len_{ 0 };
 		mutable std::size_t n_{ 0 };
 
 		struct pg_t
@@ -636,15 +636,15 @@ namespace
 			char right_{};
 		};
 		static constexpr pg_t pseudographics_[4] =
-		{	{'\x20', '\xBA', '\xB3', '\xBA'},  // Normal
-			{'\xCD', '\xC9', '\xD1', '\xBB'}, // Top: fill, left, middle, right
+		{	{'\x20', '\xBA', '\xB3', '\xBA'}, // Normal: fill, left, middle, right
+			{'\xCD', '\xC9', '\xD1', '\xBB'}, // Top
 			{'\xC4', '\xC7', '\xC5', '\xB6'}, // Middle 
 			{'\xCD', '\xC8', '\xCF', '\xBC'}, // Bottom 
 		};
 		static constexpr pg_t ascetic_[4] =
 		{	{'\x20'},
 		};
-		const pg_t *pg_ = pseudographics_; // ascetic_; //
+		const pg_t *pg_ = pseudographics_; // ascetic_;
 
 		struct strings_t
 		{	std::string number_;
@@ -673,13 +673,14 @@ meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* d
 }
 
 std::size_t meterage_format_t::buffsize() const
-{	return
-		(pg_[0].left_? 2: 0) + number_len_ +
-		(pg_[0].middle_? 3: 1) + traits_.max_len_name_ +
-		(pg_[0].middle_? 3: 1) + traits_.max_len_average_ +
-		(pg_[0].middle_? 3: 1) + traits_.max_len_total_ +
-		(pg_[0].middle_? 3: 1) + traits_.max_len_amount_ +
-		(pg_[0].right_? 2: 0) + 1;
+{	auto &pg = pg_[0];
+	return
+		(pg.left_? 2: 0) + number_len_ +
+		(pg.middle_? 3: 1) + traits_.max_len_name_ +
+		(pg.middle_? 3: 1) + traits_.max_len_average_ +
+		(pg.middle_? 3: 1) + traits_.max_len_total_ +
+		(pg.middle_? 3: 1) + traits_.max_len_amount_ +
+		(pg.right_? 2: 0) + 1;
 }
 
 int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill_name) const
@@ -740,14 +741,14 @@ int meterage_format_t::header() const
 
 	auto result = 0;
 
-	if(pg_[1].fill_)
-		result += print(empty, pg_[1]);
+	if(auto& pg = pg_[1]; pg.fill_)
+		result += print(empty, pg);
 
-	if (pg_[0].fill_)
-		result += print(strings, pg_[0]);
+	if (auto& pg = pg_[0]; pg.fill_)
+		result += print(strings, pg);
 
-	if (pg_[2].fill_)
-		result += print(empty, pg_[2]);
+	if (auto& pg = pg_[2]; pg.fill_)
+		result += print(empty, pg);
 
 	return result;
 }
@@ -755,8 +756,8 @@ int meterage_format_t::header() const
 int meterage_format_t::footer() const
 {
 	int result = 0;
-	if (pg_[3].fill_)
-		result = print({}, pg_[3]);
+	if (auto& pg = pg_[3]; pg.fill_)
+		result = print({}, pg);
 	return result;
 }
 
