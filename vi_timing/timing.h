@@ -38,6 +38,7 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 
 #ifdef _MSC_VER
 #	include <intrin.h> // For __rdtscp
+#	pragma intrinsic(__rdtscp, _mm_lfence)
 #elif defined(__GNUC__)
 #   include <x86intrin.h>
 #endif
@@ -107,29 +108,17 @@ extern "C" {
 #if defined(vi_tmGetTicks)
 // vi_tmGetTicks is already defined.
 #else
-#	if defined(_M_X64) || defined(_M_AMD64) // MS compiler on Intel
-#		pragma intrinsic(__rdtscp, _mm_lfence)
+#	if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__amd64__) // MSC or GCC on Intel
 		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
-		{	unsigned int _;
-			unsigned __int64 result = __rdtscp(&_);
-			_mm_lfence();
-			return result;
-		}
-#	elif defined(__x86_64__) || defined(__amd64__) // GNU on Intel
-		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
-		{	VI_STD(uint32_t) aux;
-//			VI_STD(uint64_t) low, high;
-//			__asm__ volatile("rdtscp" : "=a" (low), "=d" (high), "=c" (aux));
-//			__asm__ volatile("lfence" ::: "memory");
-//			return (high << 32) | low;
-			VI_STD(uint64_t) result = __rdtscp(&aux);
+		{	VI_STD(uint32_t) _;
+			const VI_STD(uint64_t) result = __rdtscp(&_);
 			_mm_lfence();
 			return result;
 		}
 #	elif __ARM_ARCH >= 8 // ARMv8 (RaspberryPi4)
 		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
 		{	VI_STD(uint64_t) result;
-			asm volatile("mrs %0, cntvct_el0" : "=r"(result));
+			__asm__ __volatile__("mrs %0, cntvct_el0" : "=r"(result));
 			return result;
 		}
 #	elif defined(_WIN32) // Windows on other platforms.
@@ -188,7 +177,7 @@ extern "C" {
 		result.start_ = vi_tmGetTicks();
 		return result;
 	}
-	static inline void vi_tmEnd(const struct vi_tmItem_t *itm) VI_NOEXCEPT
+	static inline void vi_tmFinish(const struct vi_tmItem_t *itm) VI_NOEXCEPT
 	{	const vi_tmTicks_t end = vi_tmGetTicks();
 		(void)VI_STD(atomic_fetch_add_explicit)(itm->item_, end - itm->start_, VI_MEMORY_ORDER(memory_order_relaxed));
 	}

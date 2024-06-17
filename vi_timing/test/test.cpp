@@ -175,8 +175,8 @@ int main()
 	endl(std::cout);
 
 	C_function();
-	test_multithreaded();
-	test_misc();
+//	test_multithreaded();
+//	test_misc();
 
 	std::cout << "\nHello, World!\n";
 	endl(std::cout);

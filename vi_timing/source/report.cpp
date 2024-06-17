@@ -312,26 +312,26 @@ namespace
 
 	void warming(bool all, ch::milliseconds ms)
 	{
-		if (ms.count())
-		{
-			std::atomic_bool done = false; // It must be defined before 'threads'!!!
-			auto load = [&done] {while (!done) {/**/ }}; //-V776
+		if (ch::microseconds::zero() == ms)
+			return;
 
-			const auto hwcnt = std::thread::hardware_concurrency();
-			std::vector<std::thread> threads((all && 1 < hwcnt) ? hwcnt - 1 : 0);
-			for (auto& t : threads)
-			{	t = std::thread{ load };
-			}
+		std::atomic_bool done = false; // It must be defined before 'threads'!!!
+		auto load = [&done] {while (!done) {/**/ }}; //-V776
 
-			for (const auto stop = now() + ms; now() < stop;)
-			{	/*The thread is fully loaded.*/
-			}
+		const auto hwcnt = std::thread::hardware_concurrency();
+		std::vector<std::thread> threads((all && 1 < hwcnt) ? hwcnt - 1 : 0);
+		for (auto& t : threads)
+		{	t = std::thread{ load };
+		}
 
-			done = true;
+		for (const auto stop = now() + ms; now() < stop;)
+		{	/*The thread is fully loaded.*/
+		}
 
-			for (auto& t : threads)
-			{	t.join();
-			}
+		done = true;
+
+		for (auto& t : threads)
+		{	t.join();
 		}
 	}
 
@@ -369,7 +369,7 @@ namespace
 		static constexpr auto CNT = 100U;
 
 		static auto equal = []
-		{	// The order of calling the functions is deliberately broken. To push 'vi_tmGetTicks()' and 'vi_tmEnd()' further apart.
+		{	// The order of calling the functions is deliberately broken. To push 'vi_tmGetTicks()' and 'vi_tmFinish()' further apart.
 			auto p = vi_tmItem("", 1);
 			const auto s = vi_tmGetTicks();
 			const auto e = vi_tmGetTicks();
@@ -419,7 +419,7 @@ namespace
 
 	double overmeasure()
 	{
-		constexpr auto CNT = 100U;
+		constexpr auto CNT = 1'000U;
 		constexpr auto CNT_EXT = 4U;
 
 		auto start = []
@@ -435,21 +435,16 @@ namespace
 				return result;
 			};
 
+		volatile vi_tmTicks_t e;
 		vi_tmTicks_t s = start();
-
-		// The first measurement is made to determine the pure time of the function call.
-		volatile vi_tmTicks_t e = s;
 		for (auto cnt = 0; cnt < CNT; ++cnt)
 		{	e = vi_tmGetTicks();
-			e = vi_tmGetTicks();
 		}
 		const auto pure = e - s;
 
-		// The second measurement is made to determine the dirty time of the function call.
-		e = s = start();
+		s = start();
 		for (auto cnt = 0; cnt < CNT; ++cnt)
 		{	e = vi_tmGetTicks(); //-V761
-			e = vi_tmGetTicks();
 
 			// CNT_EXT calls
 			e = vi_tmGetTicks();
@@ -481,12 +476,12 @@ namespace
 		return static_cast<double>(last - first) / static_cast<double>(CNT);
 	}
 
-	const std::string title_name_{ "Name"s };
-	const std::string title_average_{ "Average"s };
-	const std::string title_total_{ "Total"s };
-	const std::string title_amount_{ "Amount"s };
-	const std::string Ascending { " (^)"s };
-	const std::string Descending{ " (v)"s };
+	constexpr std::string_view title_name_{ "Name" };
+	constexpr std::string_view title_average_{ "Avg." };
+	constexpr std::string_view title_total_{ "Tot." };
+	constexpr std::string_view title_amount_{ "Amt." };
+	constexpr std::string_view Ascending { "(^)" };
+	constexpr std::string_view Descending{ "(v)" };
 
 	struct traits_t
 	{
@@ -634,11 +629,34 @@ namespace
 		std::size_t number_len_{0};
 		mutable std::size_t n_{ 0 };
 
+		struct pg_t
+		{	char fill_{};
+			char left_{};
+			char middle_{};
+			char right_{};
+		};
+		static constexpr pg_t pseudographics_[4] =
+		{	{'\x20', '\xBA', '\xB3', '\xBA'},  // Normal
+			{'\xCD', '\xC9', '\xD1', '\xBB'}, // Top: fill, left, middle, right
+			{'\xC4', '\xC7', '\xC5', '\xB6'}, // Middle 
+			{'\xCD', '\xC8', '\xCF', '\xBC'}, // Bottom 
+		};
+		static constexpr pg_t ascetic_[4] =
+		{	{'\x20'},
+		};
+		const pg_t *pg_ = pseudographics_; // ascetic_; //
+
+		struct strings_t
+		{	std::string number_;
+			std::string name_;
+			std::string average_;
+			std::string total_;
+			std::string amount_;
+		};
+
 		meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* data);
 		[[nodiscard]] std::size_t buffsize() const;
-		int header_line1() const;
-		int header_line2() const;
-		int header_line3() const;
+		int print(const strings_t& strings, const pg_t &pg, char fill_name = 0) const;
 		int header() const;
 		int footer() const;
 		int operator ()(int init, const traits_t::itm_t& i) const;
@@ -656,146 +674,118 @@ meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* d
 
 std::size_t meterage_format_t::buffsize() const
 {	return
-		2 + number_len_ +
-		3 + traits_.max_len_name_ +
-		3 + traits_.max_len_average_ +
-		3 + traits_.max_len_total_ +
-		3 + traits_.max_len_amount_ +
-		2 + 1;
+		(pg_[0].left_? 2: 0) + number_len_ +
+		(pg_[0].middle_? 3: 1) + traits_.max_len_name_ +
+		(pg_[0].middle_? 3: 1) + traits_.max_len_average_ +
+		(pg_[0].middle_? 3: 1) + traits_.max_len_total_ +
+		(pg_[0].middle_? 3: 1) + traits_.max_len_amount_ +
+		(pg_[0].right_? 2: 0) + 1;
 }
 
-int meterage_format_t::header_line1() const
-{
-	std::string buff;
-	buff.reserve(buffsize());
-
-	buff = '\xC9';
-	buff.append(number_len_ + 2, '\xCD');
-	buff += '\xD1';
-	buff.append(traits_.max_len_name_ + 2, '\xCD');
-	buff += '\xD1';
-	buff.append(traits_.max_len_average_ + 2, '\xCD');
-	buff += '\xD1';
-	buff.append(traits_.max_len_total_ + 2, '\xCD');
-	buff += '\xD1';
-	buff.append(traits_.max_len_amount_ + 2, '\xCD');
-	buff += '\xBB';
-	buff += '\n';
-	assert(buffsize() == buff.size());
-
-	return fn_(buff.c_str(), data_);
-}
-
-int meterage_format_t::header_line2() const
-{
-	const auto order = (traits_.flags_ & static_cast<uint32_t>(vi_tmSortAscending)) ? Ascending : Descending;
-	auto sort = vi_tmSortBySpeed;
-	switch (auto s = traits_.flags_ & static_cast<uint32_t>(vi_tmSortMask))
-	{
-	case vi_tmSortBySpeed:
-		break;
-	case vi_tmSortByAmount:
-	case vi_tmSortByName:
-	case vi_tmSortByTime:
-		sort = static_cast<vi_tmReportFlags>(s);
-		break;
-	default:
-		assert(false);
-		break;
-	}
-
+int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill_name) const
+{	assert(pg.fill_);
 	std::ostringstream str;
-	str << "\xBA ";
-	str << std::setw(number_len_) << "#" << " \xB3 ";
-	str << std::setw(traits_.max_len_name_) << std::left << (title_name_ + (sort == vi_tmSortByName ? order : "")) << " \xB3 ";
-	str << std::setw(traits_.max_len_average_) << std::right << (title_average_ + (sort == vi_tmSortBySpeed ? order : "")) << std::setfill(' ') << " \xB3 ";
-	str << std::setw(traits_.max_len_total_) << (title_total_ + (sort == vi_tmSortByTime ? order : "")) << " \xB3 ";
-	str << std::setw(traits_.max_len_amount_) << (title_amount_ + (sort == vi_tmSortByAmount ? order : "")) << " \xBA";
+	str.fill(pg.fill_);
+
+	pg.left_ && str << pg.left_ << pg.fill_;
+	str << std::setw(number_len_) << strings.number_ << pg.fill_;
+	pg.middle_ && str << pg.middle_ << pg.fill_;
+	fill_name && str << std::setfill(fill_name);
+	str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_;
+	fill_name && str << std::setfill(pg.fill_);
+	pg.middle_ && str << pg.middle_ << pg.fill_;
+	str << std::setw(traits_.max_len_average_) << std::right << strings.average_ << pg.fill_;
+	pg.middle_ && str << pg.middle_ << pg.fill_;
+	str << std::setw(traits_.max_len_total_) << strings.total_ << pg.fill_;
+	pg.middle_ && str << pg.middle_ << pg.fill_;
+	str << std::setw(traits_.max_len_amount_) << strings.amount_;
+	pg.right_ && str << pg.fill_ << pg.right_;
 	str << "\n";
+
 	auto buff = str.str();
-
-	assert(buffsize() == buff.size());
-	return fn_(buff.c_str(), data_);
-}
-
-int meterage_format_t::header_line3() const
-{
-	std::string buff;
-	buff.reserve(buffsize());
-
-	buff = '\xC7';
-	buff.append(number_len_ + 2, '\xC4');
-	buff += '\xC5';
-	buff.append(traits_.max_len_name_ + 2, '\xC4');
-	buff += '\xC5';
-	buff.append(traits_.max_len_average_ + 2, '\xC4');
-	buff += '\xC5';
-	buff.append(traits_.max_len_total_ + 2, '\xC4');
-	buff += '\xC5';
-	buff.append(traits_.max_len_amount_ + 2, '\xC4');
-	buff += '\xB6';
-	buff += '\n';
-
 	assert(buffsize() == buff.size());
 	return fn_(buff.c_str(), data_);
 }
 
 int meterage_format_t::header() const
 {
-	auto result = header_line1();
-	result += header_line2();
-	result += header_line3();
+	static const strings_t empty{};
+	const auto order = (traits_.flags_ & static_cast<uint32_t>(vi_tmSortAscending)) ? Ascending : Descending;
+	strings_t strings
+	{	"#",
+		std::string{title_name_},
+		std::string{title_average_},
+		std::string{title_total_},
+		std::string{title_amount_}
+	};
+
+	switch (auto s = traits_.flags_ & static_cast<uint32_t>(vi_tmSortMask))
+	{
+		case vi_tmSortBySpeed:
+			strings.average_ += order;
+			break;
+		case vi_tmSortByAmount:
+			strings.amount_ += order;
+			break;
+		case vi_tmSortByName:
+			strings.name_ += order;
+			break;
+		case vi_tmSortByTime:
+			strings.total_ += order;
+			break;
+		default:
+			assert(false);
+			break;
+	}
+
+	auto result = 0;
+
+	if(pg_[1].fill_)
+		result += print(empty, pg_[1]);
+
+	if (pg_[0].fill_)
+		result += print(strings, pg_[0]);
+
+	if (pg_[2].fill_)
+		result += print(empty, pg_[2]);
+
 	return result;
 }
 
 int meterage_format_t::footer() const
 {
-	std::string buff;
-	buff.reserve(buffsize());
-
-	buff = '\xC8';
-	buff.append(number_len_ + 2, '\xCD');
-	buff += '\xCF';
-	buff.append(traits_.max_len_name_ + 2, '\xCD');
-	buff += '\xCF';
-	buff.append(traits_.max_len_average_ + 2, '\xCD');
-	buff += '\xCF';
-	buff.append(traits_.max_len_total_ + 2, '\xCD');
-	buff += '\xCF';
-	buff.append(traits_.max_len_amount_ + 2, '\xCD');
-	buff += '\xBC';
-	buff += '\n';
-
-	assert(buffsize() == buff.size());
-	return fn_(buff.c_str(), data_);
+	int result = 0;
+	if (pg_[3].fill_)
+		result = print({}, pg_[3]);
+	return result;
 }
 
 int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
 {
-	struct thousands_sep_facet_t final : std::numpunct<char>
-	{
-		char do_thousands_sep() const override { return '\''; }
-		std::string do_grouping() const override { return "\x3"; }
-	};
-
 	std::ostringstream str;
-	str.imbue(std::locale(str.getloc(), new thousands_sep_facet_t)); //-V2511
+	{	struct thousands_sep_facet_t final : std::numpunct<char>
+		{	char do_thousands_sep() const override { return '\''; }
+			std::string do_grouping() const override { return "\x3"; }
+		};
+
+		str.imbue(std::locale(str.getloc(), new thousands_sep_facet_t)); //-V2511
+		str << i.on_amount_;
+	}
 
 	++n_;
-	constexpr auto rift = 2;
-	const char fill = (traits_.meterages_.size() > (rift + 1) && (0 != n_ % rift)) ? ' ' : '.';
-	str << "\xBA ";
-	str << std::setw(number_len_) << n_ << " \xB3 ";
-	str << std::setw(traits_.max_len_name_) << std::setfill(fill) << std::left << i.on_name_ << " \xB3 ";
-	str << std::setw(traits_.max_len_average_) << std::setfill(' ') << std::right << i.average_txt_ << " \xB3 ";
-	str << std::setw(traits_.max_len_total_) << i.total_txt_ << " \xB3 ";
-	str << std::setw(traits_.max_len_amount_) << i.on_amount_ << " \xBA";
-	str << "\n";
 
-	auto result = str.str();
-	assert(buffsize() == result.size());
+	constexpr auto rift = 3;
+	const char fill_name = (traits_.meterages_.size() <= rift || n_ % rift) ? 0 : '.';
 
-	return init + fn_(result.c_str(), data_);
+	strings_t strings
+	{	std::to_string(n_),
+		std::string{i.on_name_},
+		i.average_txt_,
+		i.total_txt_,
+		str.str()
+	};
+
+	return init + print(strings, pg_[0], fill_name);
 }
 
 VI_TM_API int VI_TM_CALL vi_tmReport(std::uint32_t flags, vi_tmLogSTR_t fn, void* data)
