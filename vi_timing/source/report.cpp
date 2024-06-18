@@ -619,16 +619,22 @@ int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill
 
 	if(pg.left_)
 		str << pg.left_ << pg.fill_;
-	str << std::setw(number_len_) << strings.number_ << pg.fill_;
+	str << std::setw(number_len_) << strings.number_;
 	if (pg.middle_)
-		str << pg.middle_ << pg.fill_;
+		str << pg.fill_ << pg.middle_;
+	else
+		str << ":";
+	str << pg.fill_;
 	if(fill_name)
 		str.fill(fill_name);
 	str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_;
 	if(fill_name)
 		str.fill(pg.fill_);
 	if (pg.middle_)
-		str << pg.middle_ << pg.fill_;
+		str << pg.fill_ << pg.middle_;
+	else
+		str << ":";
+	str << pg.fill_;
 	str << std::setw(traits_.max_len_average_) << std::right << strings.average_ << pg.fill_;
 	if (pg.middle_)
 		str << pg.middle_ << pg.fill_;
