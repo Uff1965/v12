@@ -29,7 +29,7 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 
 #ifdef __cplusplus
 #	define VI_STD(s) std::s
-#	define VI_MEMORY_ORDER(s) std::memory_order::s
+#	define VI_MEMORY_ORDER(s) std::s
 #	define VI_NOEXCEPT noexcept
 #	define VI_R_CAST(T, s) reinterpret_cast<T>(s)
 #	define VI_S_CAST(T, s) static_cast<T>(s)
