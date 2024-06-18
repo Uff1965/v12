@@ -304,7 +304,7 @@ namespace
 			auto p = vi_tmItem("", 1);
 			const auto s = vi_tmGetTicks();
 			const auto e = vi_tmGetTicks();
-			(void)std::atomic_fetch_add_explicit(p, e - s, std::memory_order::memory_order_relaxed);
+			(void)std::atomic_fetch_add_explicit(p, e - s, std::memory_order_relaxed);
 		};
 
 		auto start = []
