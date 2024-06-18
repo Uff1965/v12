@@ -651,9 +651,11 @@ int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill
 	return fn_(buff.c_str(), data_);
 }
 
+static constexpr meterage_format_t::pg_t chop = { '~' };
+static const meterage_format_t::strings_t empty{};
+
 int meterage_format_t::header() const
 {
-	static const strings_t empty{};
 	const auto order = (traits_.flags_ & static_cast<uint32_t>(vi_tmSortAscending)) ? Ascending : Descending;
 	strings_t strings
 	{	"#",
@@ -685,14 +687,18 @@ int meterage_format_t::header() const
 	auto result = 0;
 
 	if(auto& pg = pg_[1]; pg.fill_)
-	{	result += print(empty, pg);
-	}
+		result += print(empty, pg);
+	else
+		result += print(empty, chop);
+
 	if (auto& pg = pg_[0]; pg.fill_)
-	{	result += print(strings, pg);
-	}
+		result += print(strings, pg);
+
 	if (auto& pg = pg_[2]; pg.fill_)
-	{	result += print(empty, pg);
-	}
+		result += print(empty, pg);
+	else
+		result += print(empty, chop);
+
 	return result;
 }
 
@@ -701,6 +707,9 @@ int meterage_format_t::footer() const
 	int result = 0;
 	if (auto& pg = pg_[3]; pg.fill_)
 		result = print({}, pg);
+	else
+		result += print(empty, chop);
+
 	return result;
 }
 
