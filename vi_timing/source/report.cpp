@@ -573,7 +573,7 @@ namespace
 			{'\xCD', '\xC8', '\xCF', '\xBC'}, // Bottom 
 		};
 		static constexpr pg_t ascetic_[4] = { {'\x20'} };
-		const pg_t *pg_ = pseudographics_; // ascetic_;
+		const pg_t *pg_ = ascetic_; // pseudographics_; //
 
 		struct strings_t
 		{	std::string number_;
