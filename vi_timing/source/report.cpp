@@ -561,10 +561,10 @@ namespace
 		mutable std::size_t n_{ 0 };
 
 		struct pg_t
-		{	char fill_{};
-			char left_{};
-			char middle_{};
-			char right_{};
+		{	char fill_;
+			char left_;
+			char middle_;
+			char right_;
 		};
 		static constexpr pg_t pseudographics_[4] =
 		{	{'\x20', '\xBA', '\xB3', '\xBA'}, // Normal: fill, left, middle, right
