@@ -196,7 +196,7 @@ namespace vi_tm
 		timer_t(const char* name, std::size_t amount = 1) noexcept : vi_tmItem_t{ vi_tmItem(name, amount), vi_tmGetTicks() } {}
 		~timer_t() noexcept
 		{	const auto end = vi_tmGetTicks();
-			(void)std::atomic_fetch_add_explicit(item_, end - start_, std::memory_order::memory_order_relaxed);
+			(void)std::atomic_fetch_add_explicit(item_, end - start_, VI_MEMORY_ORDER(memory_order_relaxed));
 		}
 	};
 
