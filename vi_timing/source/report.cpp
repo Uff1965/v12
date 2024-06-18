@@ -572,9 +572,7 @@ namespace
 			{'\xC4', '\xC7', '\xC5', '\xB6'}, // Middle 
 			{'\xCD', '\xC8', '\xCF', '\xBC'}, // Bottom 
 		};
-		static constexpr pg_t ascetic_[4] =
-		{	{'\x20'},
-		};
+		static constexpr pg_t ascetic_[4] = { {'\x20'} };
 		const pg_t *pg_ = pseudographics_; // ascetic_;
 
 		struct strings_t
