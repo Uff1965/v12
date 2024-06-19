@@ -162,6 +162,11 @@ namespace
 			return ss.str();
 		}
 
+		template <typename R, std::enable_if_t<std::is_convertible_v<const R&, double>, int> = 0>
+		[[nodiscard]] friend constexpr duration_t operator*(const duration_t& l, const R& r) noexcept(std::is_arithmetic_v<R>)
+		{	return duration_t{ l.count() * r };
+		}
+
 		[[nodiscard]] friend bool operator<(duration_t l, duration_t r)
 		{	return l.count() < r.count() && to_string(l, 2, 1) != to_string(r, 2, 1);
 		}
@@ -584,7 +589,6 @@ namespace
 		};
 
 		meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* data);
-		[[nodiscard]] std::size_t buffsize() const;
 		int print(const strings_t& strings, const pg_t &pg, char fill_name = 0) const;
 		int header() const;
 		int footer() const;
@@ -601,17 +605,6 @@ meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* d
 	}
 }
 
-std::size_t meterage_format_t::buffsize() const
-{	auto &pg = pg_[0];
-	return
-		(pg.left_? 2: 0) + number_len_ +
-		(pg.middle_? 3: 1) + traits_.max_len_name_ +
-		(pg.middle_? 3: 1) + traits_.max_len_average_ +
-		(pg.middle_? 3: 1) + traits_.max_len_total_ +
-		(pg.middle_? 3: 1) + traits_.max_len_amount_ +
-		(pg.right_? 2: 0) + 1;
-}
-
 int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill_name) const
 {	assert(pg.fill_);
 	std::ostringstream str;
@@ -619,12 +612,14 @@ int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill
 
 	if(pg.left_)
 		str << pg.left_ << pg.fill_;
+
 	str << std::setw(number_len_) << strings.number_;
 	if (pg.middle_)
 		str << pg.fill_ << pg.middle_;
 	else
-		str << ":";
+		str << ':';
 	str << pg.fill_;
+
 	if(fill_name)
 		str.fill(fill_name);
 	str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_;
@@ -635,6 +630,7 @@ int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill
 	else
 		str << ":";
 	str << pg.fill_;
+
 	str << std::setw(traits_.max_len_average_) << std::right << strings.average_ << pg.fill_;
 	if (pg.middle_)
 		str << pg.middle_ << pg.fill_;
@@ -647,7 +643,6 @@ int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill
 	str << "\n";
 
 	auto buff = str.str();
-	assert(buffsize() == buff.size());
 	return fn_(buff.c_str(), data_);
 }
 
