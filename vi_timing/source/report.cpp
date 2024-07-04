@@ -608,36 +608,38 @@ meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* d
 int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill_name) const
 {	assert(pg.fill_);
 	std::ostringstream str;
-	str.fill(pg.fill_);
 
+	auto spacing = [&str, &pg](char c = 0)
+	{	if (pg.middle_)
+			str << pg.fill_ << pg.middle_;
+		else if (c)
+			str << c;
+		else
+			str << pg.fill_;
+
+		str << pg.fill_;
+	};
+
+	str.fill(pg.fill_);
 	if(pg.left_)
 		str << pg.left_ << pg.fill_;
 
-	str << std::setw(number_len_) << strings.number_;
-	if (pg.middle_)
-		str << pg.fill_ << pg.middle_;
-	else
-		str << ':';
-	str << pg.fill_;
+	str << std::setw(number_len_) << strings.number_; // Number
+	spacing(fill_name ? '.' : '\0');
 
 	if(fill_name)
 		str.fill(fill_name);
-	str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_;
+	str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_; // Name
 	if(fill_name)
 		str.fill(pg.fill_);
-	if (pg.middle_)
-		str << pg.fill_ << pg.middle_;
-	else
-		str << ":";
-	str << pg.fill_;
 
-	str << std::setw(traits_.max_len_average_) << std::right << strings.average_ << pg.fill_;
-	if (pg.middle_)
-		str << pg.middle_ << pg.fill_;
-	str << std::setw(traits_.max_len_total_) << strings.total_ << pg.fill_;
-	if (pg.middle_)
-		str << pg.middle_ << pg.fill_;
-	str << std::setw(traits_.max_len_amount_) << strings.amount_;
+	spacing(fill_name ? ':' : '\0');
+	str << std::setw(traits_.max_len_average_) << std::right << strings.average_; // Average
+	spacing();
+	str << std::setw(traits_.max_len_total_) << strings.total_; // Total
+	spacing();
+	str << std::setw(traits_.max_len_amount_) << strings.amount_; // Amount
+
 	if (pg.right_)
 		str << pg.fill_ << pg.right_;
 	str << "\n";
@@ -723,7 +725,7 @@ int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
 	++n_;
 
 	constexpr auto rift = 3;
-	const char fill_name = (traits_.meterages_.size() <= rift || n_ % rift) ? 0 : '.';
+	const char fill_name = (traits_.meterages_.size() <= rift || n_ % rift) ? ' ' : '.';
 
 	strings_t strings
 	{	std::to_string(n_),

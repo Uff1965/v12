@@ -23,8 +23,8 @@ along with this program.
 If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 \*****************************************************************************/
 
-#ifndef VI_TIMING_VI_COMMON_H
-#	define VI_TIMING_VI_COMMON_H
+#ifndef VI_TIMING_COMMON_H
+#	define VI_TIMING_COMMON_H
 #	pragma once
 
 #ifdef __cplusplus
@@ -33,12 +33,14 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #	define VI_NOEXCEPT noexcept
 #	define VI_R_CAST(T, s) reinterpret_cast<T>(s)
 #	define VI_S_CAST(T, s) static_cast<T>(s)
+#	define VI_MAYBE_UNUSED [[maybe_unused]]
 #else
 #	define VI_STD(s) s
 #	define VI_MEMORY_ORDER(s) s
 #	define VI_NOEXCEPT
 #	define VI_R_CAST(T, s) (T)(s)
 #	define VI_S_CAST(T, s) (T)(s)
+#	define VI_MAYBE_UNUSED
 #endif
 
 #ifdef _MSC_VER
@@ -55,16 +57,14 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #elif defined(__GNUC__)
 #	define VI_OPTIMIZE_OFF _Pragma("GCC push_options") _Pragma("GCC optimize(\"O0\")")
 #	define VI_OPTIMIZE_ON  _Pragma("GCC pop_options")
-#elif __cplusplus >= 202302L
+#else
 #	warning "Unknown compiler. Optimization control is disabled."
 #	define VI_OPTIMIZE_OFF
 #	define VI_OPTIMIZE_ON
-#else
-#	error "Unknown compyler!"
 #endif
 
 #define VI_STR_AUX( a, b ) a##b
 #define VI_STR( a, b ) VI_STR_AUX( a, b )
 #define VI_MAKE_UNIC_ID( prefix ) VI_STR( prefix, __LINE__ )
 
-#endif // #ifndef VI_TIMING_VI_COMMON_H
+#endif // #ifndef VI_TIMING_COMMON_H

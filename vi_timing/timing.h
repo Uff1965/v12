@@ -26,8 +26,8 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 //-V122_NOPTR
 //-V1042
 
-#ifndef VI_TIMING_VI_TIMING_H
-#	define VI_TIMING_VI_TIMING_H 3.0
+#ifndef VI_TIMING_TIMING_H
+#	define VI_TIMING_TIMING_H 3.0
 #	pragma once
 
 #if defined(_WIN32)
@@ -242,9 +242,10 @@ namespace vi_tm
 } // namespace vi_tm {
 
 #	if defined(VI_TM_DISABLE)
-#		define VI_TM_INIT(...) int VI_MAKE_UNIC_ID(_vi_tm_dummy_){(__VA_ARGS__, 0)}
-#		define VI_TM(...) int VI_MAKE_UNIC_ID(_vi_tm_dummy_){(__VA_ARGS__, 0)}
+#		define VI_TM_INIT(...) VI_MAYBE_UNUSED int VI_MAKE_UNIC_ID(_vi_tm_dummy_) = (__VA_ARGS__, 0)
+#		define VI_TM(...) VI_MAYBE_UNUSED int VI_MAKE_UNIC_ID(_vi_tm_dummy_) = (__VA_ARGS__, 0)
 #		define VI_TM_REPORT(...) ((void)(__VA_ARGS__, 0))
+#		define VI_TM_FUNC ((void)0)
 #	else
 #		define VI_TM_INIT(...) vi_tm::init_t VI_MAKE_UNIC_ID(_vi_tm_init_)(__VA_ARGS__)
 #		define VI_TM(...) vi_tm::timer_t VI_MAKE_UNIC_ID(_vi_tm_variable_) (__VA_ARGS__)
@@ -254,4 +255,4 @@ namespace vi_tm
 #	define VI_TM_FUNC VI_TM( VI_FUNCNAME )
 #endif // #if !defined(__cplusplus) ^^^
 
-#endif // #ifndef VI_TIMING_VI_TIMING_H
+#endif // #ifndef VI_TIMING_TIMING_H
