@@ -34,13 +34,17 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #	include <Windows.h>
 #elif defined(__linux__)
 #	include <time.h> // for clock_gettime
+#else
+#	error "Unknown OS!"
 #endif
 
-#ifdef _MSC_VER
-#	include <intrin.h> // For __rdtscp
-#	pragma intrinsic(__rdtscp, _mm_lfence)
-#elif defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
 #   include <x86intrin.h>
+#elif defined _MSC_VER
+#	include <intrin.h>
+#	pragma intrinsic(__rdtscp, _mm_lfence)
+#else
+#	error "Unknown compiler!"
 #endif
 
 #ifdef __cplusplus
@@ -105,39 +109,33 @@ extern "C" {
 #endif
 
 // Definition of vi_tmGetTicks() function for different platforms. vvvvvvvvvvvv
-#if defined(vi_tmGetTicks)
-// vi_tmGetTicks is already defined.
+#if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__amd64__) // MSC, GCC or CLANG on Intel
+	static inline vi_tmTicks_t vi_tmGetTicks(void)
+	{	VI_STD(uint32_t) _;
+		const VI_STD(uint64_t) result = __rdtscp(&_);
+		_mm_lfence();
+		return result;
+	}
+#elif __ARM_ARCH >= 8 // ARMv8 (RaspberryPi4)
+	static inline vi_tmTicks_t vi_tmGetTicks(void)
+	{	VI_STD(uint64_t) result;
+		__asm__ __volatile__("mrs %0, cntvct_el0" : "=r"(result));
+		return result;
+	}
+#elif defined(_WIN32) // Windows on other platforms.
+	static inline vi_tmTicks_t vi_tmGetTicks(void)
+	{	LARGE_INTEGER cnt;
+		QueryPerformanceCounter(&cnt);
+		return cnt.QuadPart;
+	}
+#elif defined(__linux__) // Linux on other platforms
+	static inline vi_tmTicks_t vi_tmGetTicks(void)
+	{	struct timespec ts;
+		clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+		return 1000000000ULL * ts.tv_sec + ts.tv_nsec;
+	}
 #else
-#	if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__amd64__) // MSC or GCC on Intel
-		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
-		{	VI_STD(uint32_t) _;
-			const VI_STD(uint64_t) result = __rdtscp(&_);
-			_mm_lfence();
-			return result;
-		}
-#	elif __ARM_ARCH >= 8 // ARMv8 (RaspberryPi4)
-		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
-		{	VI_STD(uint64_t) result;
-			__asm__ __volatile__("mrs %0, cntvct_el0" : "=r"(result));
-			return result;
-		}
-#	elif defined(_WIN32) // Windows on other platforms.
-		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
-		{	LARGE_INTEGER cnt;
-			QueryPerformanceCounter(&cnt);
-			return cnt.QuadPart;
-		}
-#	elif defined(__linux__) // Linux on other platforms
-		static inline vi_tmTicks_t vi_tmGetTicks_impl(void)
-		{	struct timespec ts;
-			clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-			return 1000000000ULL * ts.tv_sec + ts.tv_nsec;
-		}
-#	else
-#		error "You need to define function(s) for your OS and CPU"
-#	endif
-	
-#	define vi_tmGetTicks vi_tmGetTicks_impl
+#	error "You need to define function(s) for your OS and CPU"
 #endif
 // Definition of vi_tmGetTicks() function for different platforms. ^^^^^^^^^^^^
 
@@ -188,39 +186,33 @@ extern "C" {
 
 namespace vi_tm
 {
-	class timer_t: public vi_tmItem_t
-	{
-		timer_t(const timer_t&) = delete;
-		timer_t& operator=(const timer_t&) = delete;
-	public:
-		timer_t(const char* name, std::size_t amount = 1) noexcept : vi_tmItem_t{ vi_tmItem(name, amount), vi_tmGetTicks() } {}
-		~timer_t() noexcept
-		{	const auto end = vi_tmGetTicks();
-			(void)std::atomic_fetch_add_explicit(item_, end - start_, VI_MEMORY_ORDER(memory_order_relaxed));
-		}
+	struct timer_t: vi_tmItem_t
+	{	timer_t(const timer_t&) noexcept = delete;
+		timer_t& operator=(const timer_t&) noexcept = delete;
+		timer_t(const char* name, std::size_t amount = 1) noexcept : vi_tmItem_t{ vi_tmStart(name, amount) } {}
+		~timer_t() noexcept { vi_tmFinish(this); }
 	};
 
 	class init_t
-	{
-		std::string title_;
+	{	std::string title_;
 		vi_tmLogSTR_t cb_;
 		void* data_;
 		std::uint32_t flags_;
 	public:
 		init_t
-		(	const char* title = "Timing report:",
+		(	std::string title = "Timing report:",
 			vi_tmLogSTR_t fn = reinterpret_cast<vi_tmLogSTR_t>(&std::fputs),
 			void* data = stdout,
 			std::uint32_t flags = vi_tmSortByTime,
 			std::size_t reserve = 64
 		)
-		:	title_{ title + std::string{"\n"}}, cb_{fn}, data_{data}, flags_{flags}
+		: title_{ std::move(title) }, cb_{ fn }, data_{ data }, flags_{ flags }
 		{	vi_tmInit(reserve);
 		}
 
 		~init_t()
 		{	if (!title_.empty())
-			{	(void)cb_(title_.c_str(), data_);
+			{	(void)cb_((title_ + '\n').c_str(), data_);
 			}
 
 			(void)vi_tmReport(flags_, cb_, data_);

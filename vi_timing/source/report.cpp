@@ -246,25 +246,25 @@ namespace
 	{	return ch::steady_clock::now();
 	}
 
-	void warming(bool all, ch::milliseconds ms)
+	void warming(bool all, ch::milliseconds duration)
 	{
-		if (ch::microseconds::zero() == ms)
+		if (ch::milliseconds::zero() == duration)
 			return;
 
-		std::atomic_bool done = false; // It must be defined before 'threads'!!!
-		auto load = [&done] {while (!done) {/**/ }}; //-V776
+		std::atomic_bool stop = false; // It must be defined before 'threads'!!!
+		auto thread_function = [&stop] {while (!stop) {/**/ }}; //-V776 "Potentially infinite loop"
 
-		const auto hwcnt = std::thread::hardware_concurrency();
+		static auto const hwcnt = std::thread::hardware_concurrency();
 		std::vector<std::thread> threads((all && 1 < hwcnt) ? hwcnt - 1 : 0);
 		for (auto& t : threads)
-		{	t = std::thread{ load };
+		{	t = std::thread{ thread_function };
 		}
 
-		for (const auto stop = now() + ms; now() < stop;)
+		for (const auto limit = now() + duration; now() < limit;)
 		{	/*The thread is fully loaded.*/
 		}
 
-		done = true;
+		stop = true;
 
 		for (auto& t : threads)
 		{	t.join();
@@ -276,7 +276,7 @@ namespace
 	duration_t seconds_per_tick()
 	{
 		auto get_pair = []
-			{	std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
+			{	std::this_thread::yield(); // Prevent the influence of streams switching on the measurement.
 				for (auto n = 0U; n < cache_warmup; ++n) // Cache warm-up.
 				{	(void)now();
 					(void)vi_tmGetTicks();
@@ -284,15 +284,14 @@ namespace
 
 				// Are waiting for the start of a new time interval.
 				auto next = now();
-				for (const auto prev = next; prev >= next; )
-				{	next = now();
-				}
+				for (const auto prev = next; prev >= next; next = now())
+				{/**/}
 
 				return std::tuple{ vi_tmGetTicks(), next };
 			};
 
 		const auto [tick1, time1] = get_pair();
-		// Load the thread at 100% for 256ms.
+		// Load the corrent thread at 100% for 256ms.
 		for (auto stop = time1 + 256ms; now() < stop;)
 		{/**/}
 		const auto [tick2, time2] = get_pair();
@@ -304,23 +303,22 @@ namespace
 	{
 		static constexpr auto CNT = 100U;
 
-		static auto equal = []
-		{	// The order of calling the functions is deliberately broken. To push 'vi_tmGetTicks()' and 'vi_tmFinish()' further apart.
-			auto p = vi_tmItem("", 1);
+		static auto analog = []
+		{	auto p = vi_tmItem("", 1);
 			const auto s = vi_tmGetTicks();
 			const auto e = vi_tmGetTicks();
 			(void)std::atomic_fetch_add_explicit(p, e - s, std::memory_order_relaxed);
 		};
 
 		auto start = []
-		{	std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
+		{	std::this_thread::yield(); // Prevent the influence of streams switching on the measurement.
 			for (auto n = 0U; n < cache_warmup; ++n) // Cache warm-up.
-			{	equal(); // Preload function and create a service item with empty name ""!
+			{	analog(); // Preload function and create a service item with empty name ""!
 				(void)now();
 			}
 			// Are waiting for the start of a new time interval.
 			auto next = now();
-			for (const auto prev = next; next <= prev; next = now())
+			for (const auto prev = next; prev >= next; next = now())
 			{/**/}
 			return next;
 		};
@@ -328,7 +326,7 @@ namespace
 		// The first measurement is made to determine the pure time of the function call.
 		auto s = start();
 		for (unsigned int cnt = 0; cnt < CNT; ++cnt)
-		{	equal();
+		{	analog();
 		}
 		auto e = now();
 		const auto pure = e - s;
@@ -337,13 +335,13 @@ namespace
 		static constexpr auto CNT_EXT = 20U;
 		s = start();
 		for (size_t cnt = 0; cnt < CNT; ++cnt)
-		{	equal();
+		{	analog();
 
 			// And CNT_EXT more calls.
-			equal(); equal(); equal(); equal(); equal();
-			equal(); equal(); equal(); equal(); equal();
-			equal(); equal(); equal(); equal(); equal();
-			equal(); equal(); equal(); equal(); equal();
+			analog(); analog(); analog(); analog(); analog();
+			analog(); analog(); analog(); analog(); analog();
+			analog(); analog(); analog(); analog(); analog();
+			analog(); analog(); analog(); analog(); analog();
 		}
 		e = now();
 		const auto dirty = e - s;
@@ -360,7 +358,7 @@ namespace
 
 		auto start = []
 			{	std::this_thread::yield(); // To minimize the likelihood of interrupting the flow between measurements.
-				vi_tmTicks_t result;
+				vi_tmTicks_t result = 0;
 				// Cache warm-up.
 				for (auto n = 0U; n < cache_warmup; ++n)
 				{	result = vi_tmGetTicks();
@@ -450,29 +448,21 @@ namespace
 		std::size_t max_len_average_{ title_average_.length() };
 		std::size_t max_len_amount_{ title_amount_.length() };
 		
-		traits_t(std::uint32_t flags) : flags_{ flags }
-		{
-			const auto ad = Descending.length();
-			assert(ad == Ascending.length());
-
-			switch (flags_ & static_cast<uint32_t>(vi_tmSortMask))
-			{
-			case vi_tmSortByAmount:
-				max_len_amount_ += ad;
-				break;
-			case vi_tmSortByName:
-				max_len_name_ += ad;
-				break;
-			case vi_tmSortByTime:
-				max_len_total_ += ad;
-				break;
-			case vi_tmSortBySpeed:
-			default:
-				max_len_average_ += ad;
-				break;
-			}
-		}
+		traits_t(std::uint32_t flags);
 	};
+
+	traits_t::traits_t(std::uint32_t flags) : flags_{ flags }
+	{	assert(Descending.length() == Ascending.length());
+		std::size_t* p;
+		switch (flags_ & static_cast<uint32_t>(vi_tmSortMask))
+		{	default: assert(false); [[fallthrough]];
+			case vi_tmSortBySpeed:	p = &max_len_average_; break;
+			case vi_tmSortByAmount:	p = &max_len_amount_; break;
+			case vi_tmSortByName:	p = &max_len_name_; break;
+			case vi_tmSortByTime:	p = &max_len_total_; break;
+		}
+		*p += Descending.length();
+	}
 
 	int collector_meterages(const char* name, vi_tmTicks_t total, std::size_t amount, std::size_t calls_cnt, void* _traits)
 	{
@@ -577,7 +567,9 @@ namespace
 			{'\xC4', '\xC7', '\xC5', '\xB6'}, // Middle 
 			{'\xCD', '\xC8', '\xCF', '\xBC'}, // Bottom 
 		};
-		static constexpr pg_t ascetic_[4] = { {'\x20'} };
+		static constexpr pg_t ascetic_[4] =
+		{	{'\x20'}
+		};
 		const pg_t *pg_ = ascetic_; // pseudographics_; //
 
 		struct strings_t
@@ -589,7 +581,7 @@ namespace
 		};
 
 		meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* data);
-		int print(const strings_t& strings, const pg_t &pg, char fill_name = 0) const;
+		int print(const strings_t& strings, pg_t pg, char fill_name = 0) const;
 		int header() const;
 		int footer() const;
 		int operator ()(int init, const traits_t::itm_t& i) const;
@@ -605,7 +597,7 @@ meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* d
 	}
 }
 
-int meterage_format_t::print(const strings_t& strings, const pg_t &pg, char fill_name) const
+int meterage_format_t::print(const strings_t& strings, const pg_t pg, char fill_name) const
 {	assert(pg.fill_);
 	std::ostringstream str;
 
