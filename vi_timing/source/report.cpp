@@ -555,24 +555,6 @@ namespace
 		std::size_t number_len_{ 0 };
 		mutable std::size_t n_{ 0 };
 
-		struct pg_t
-		{	char fill_;
-			char left_;
-			char middle_;
-			char right_;
-		};
-		struct pgs_t{ pg_t normal_; pg_t top_; pg_t middle_; pg_t bottom_; };
-		static constexpr pgs_t pseudographics_
-		{	{'\x20', '\xBA', '\xB3', '\xBA'}, // Normal: fill, left, middle, right
-			{'\xCD', '\xC9', '\xD1', '\xBB'}, // Top
-			{'\xC4', '\xC7', '\xC5', '\xB6'}, // Middle 
-			{'\xCD', '\xC8', '\xCF', '\xBC'}, // Bottom 
-		};
-		static constexpr pgs_t ascetic_
-		{	{'\x20'}
-		};
-		const pgs_t &pg_ = pseudographics_; // ascetic_; //
-
 		struct strings_t
 		{	std::string number_;
 			std::string name_;
@@ -582,7 +564,7 @@ namespace
 		};
 
 		meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* data);
-		int print(const strings_t& strings, pg_t pg, char fill_name = 0) const;
+		int print(const strings_t& strings, char fill_name = 0) const;
 		int header() const;
 		int footer() const;
 		int operator ()(int init, const traits_t::itm_t& i) const;
@@ -598,50 +580,40 @@ meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* d
 	}
 }
 
-int meterage_format_t::print(const strings_t& strings, const pg_t pg, char fill_name) const
-{	assert(pg.fill_);
-	std::ostringstream str;
+int meterage_format_t::print(const strings_t& strings, char fill_name) const
+{
+	std::string buffer;
 
-	auto spacing = [&str, &pg](char c = 0)
-	{	if (pg.middle_)
-			str << pg.fill_ << pg.middle_;
-		else if (c)
-			str << c;
-		else
-			str << pg.fill_;
+	if (!fill_name)
+	{	const auto len =
+			number_len_ + 1 + 1 +
+			traits_.max_len_name_ + 1 + 1 +
+			traits_.max_len_average_ + 1 +
+			traits_.max_len_total_ + 1 +
+			traits_.max_len_amount_;
+		buffer = std::string(len, '~');
+		buffer += '\n';
+	}
+	else
+	{	std::ostringstream str;
 
-		str << pg.fill_;
-	};
+		str << std::setw(number_len_) << strings.number_ << ". "; // Number
 
-	str.fill(pg.fill_);
-	if(pg.left_)
-		str << pg.left_ << pg.fill_;
-
-	str << std::setw(number_len_) << strings.number_; // Number
-	spacing(fill_name ? '.' : '\0');
-
-	if(fill_name)
 		str.fill(fill_name);
-	str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_; // Name
-	if(fill_name)
-		str.fill(pg.fill_);
+		str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_; // Name
+		str.fill(' ');
 
-	spacing(fill_name ? ':' : '\0');
-	str << std::setw(traits_.max_len_average_) << std::right << strings.average_; // Average
-	spacing();
-	str << std::setw(traits_.max_len_total_) << strings.total_; // Total
-	spacing();
-	str << std::setw(traits_.max_len_amount_) << strings.amount_; // Amount
+		str << ':';
+		str << std::setw(traits_.max_len_average_) << std::right << strings.average_ << ' '; // Average
+		str << std::setw(traits_.max_len_total_) << strings.total_ << ' '; // Total
+		str << std::setw(traits_.max_len_amount_) << strings.amount_ << '\n'; // Amount
 
-	if (pg.right_)
-		str << pg.fill_ << pg.right_;
-	str << "\n";
+		buffer = str.str();
+	}
 
-	auto buff = str.str();
-	return fn_(buff.c_str(), data_);
+	return fn_(buffer.c_str(), data_);
 }
 
-static constexpr meterage_format_t::pg_t chop = { '~' };
 static const meterage_format_t::strings_t empty{};
 
 int meterage_format_t::header() const
@@ -676,31 +648,15 @@ int meterage_format_t::header() const
 
 	auto result = 0;
 
-	if(auto& pg = pg_.top_; pg.fill_)
-		result += print(empty, pg);
-	else
-		result += print(empty, chop);
-
-	if (auto& pg = pg_.normal_; pg.fill_)
-		result += print(strings, pg);
-
-	if (auto& pg = pg_.middle_; pg.fill_)
-		result += print(empty, pg);
-	else
-		result += print(empty, chop);
+	result += print(empty);
+	result += print(strings, ' ');
+	result += print(empty);
 
 	return result;
 }
 
 int meterage_format_t::footer() const
-{
-	int result = 0;
-	if (auto& pg = pg_.bottom_; pg.fill_)
-		result = print({}, pg);
-	else
-		result += print(empty, chop);
-
-	return result;
+{	return print(empty);
 }
 
 int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
@@ -728,7 +684,7 @@ int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
 		str.str()
 	};
 
-	return init + print(strings, pg_.normal_, fill_name);
+	return init + print(strings, fill_name);
 }
 
 VI_TM_API int VI_TM_CALL vi_tmReport(std::uint32_t flags, vi_tmLogSTR_t fn, void* data)
