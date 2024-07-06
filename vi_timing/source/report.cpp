@@ -561,16 +561,17 @@ namespace
 			char middle_;
 			char right_;
 		};
-		static constexpr pg_t pseudographics_[4] =
+		struct pgs_t{ pg_t normal_; pg_t top_; pg_t middle_; pg_t bottom_; };
+		static constexpr pgs_t pseudographics_
 		{	{'\x20', '\xBA', '\xB3', '\xBA'}, // Normal: fill, left, middle, right
 			{'\xCD', '\xC9', '\xD1', '\xBB'}, // Top
 			{'\xC4', '\xC7', '\xC5', '\xB6'}, // Middle 
 			{'\xCD', '\xC8', '\xCF', '\xBC'}, // Bottom 
 		};
-		static constexpr pg_t ascetic_[4] =
+		static constexpr pgs_t ascetic_
 		{	{'\x20'}
 		};
-		const pg_t *pg_ = ascetic_; // pseudographics_; //
+		const pgs_t &pg_ = ascetic_; // pseudographics_; //
 
 		struct strings_t
 		{	std::string number_;
@@ -675,15 +676,15 @@ int meterage_format_t::header() const
 
 	auto result = 0;
 
-	if(auto& pg = pg_[1]; pg.fill_)
+	if(auto& pg = pg_.top_; pg.fill_)
 		result += print(empty, pg);
 	else
 		result += print(empty, chop);
 
-	if (auto& pg = pg_[0]; pg.fill_)
+	if (auto& pg = pg_.normal_; pg.fill_)
 		result += print(strings, pg);
 
-	if (auto& pg = pg_[2]; pg.fill_)
+	if (auto& pg = pg_.middle_; pg.fill_)
 		result += print(empty, pg);
 	else
 		result += print(empty, chop);
@@ -694,7 +695,7 @@ int meterage_format_t::header() const
 int meterage_format_t::footer() const
 {
 	int result = 0;
-	if (auto& pg = pg_[3]; pg.fill_)
+	if (auto& pg = pg_.bottom_; pg.fill_)
 		result = print({}, pg);
 	else
 		result += print(empty, chop);
@@ -727,7 +728,7 @@ int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
 		str.str()
 	};
 
-	return init + print(strings, pg_[0], fill_name);
+	return init + print(strings, pg_.normal_, fill_name);
 }
 
 VI_TM_API int VI_TM_CALL vi_tmReport(std::uint32_t flags, vi_tmLogSTR_t fn, void* data)
