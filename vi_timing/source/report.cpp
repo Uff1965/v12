@@ -571,7 +571,7 @@ namespace
 		static constexpr pgs_t ascetic_
 		{	{'\x20'}
 		};
-		const pgs_t &pg_ = ascetic_; // pseudographics_; //
+		const pgs_t &pg_ = pseudographics_; // ascetic_; //
 
 		struct strings_t
 		{	std::string number_;
