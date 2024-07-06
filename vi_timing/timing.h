@@ -38,13 +38,11 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #	error "Unknown OS!"
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__x86_64__) || defined(__amd64__) // GNU on Intel
 #   include <x86intrin.h>
-#elif defined _MSC_VER
+#elif defined(_M_X64) || defined(_M_AMD64) // MS compiler for x64 or ARM64EC
 #	include <intrin.h>
 #	pragma intrinsic(__rdtscp, _mm_lfence)
-#else
-#	error "Unknown compiler!"
 #endif
 
 #ifdef __cplusplus
