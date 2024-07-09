@@ -16,4 +16,23 @@
 
 inline bool verify(bool b) { assert(b); return b; } //-V:verify:530 //-V3549
 
+namespace vi_gsl
+{
+    template< typename F >
+    class final_action
+    {   F action_;
+    public:
+        explicit final_action(F&& f) noexcept(noexcept(F(std::forward<F>(f)))) : action_(std::forward<F>(f)) {}
+        ~final_action() noexcept(noexcept(action_())) { action_(); }
+
+        final_action(final_action const&) = delete;
+        void operator=(final_action const&) = delete;
+    };
+
+    template< typename F >
+    inline [[nodiscard]] auto finally(F&& action)
+    {   return final_action<typename std::decay_t<F>>{std::forward<F>(action)};
+    }
+}
+
 #endif // #ifndef VI_TIMING_LUAVSPYTHON_HEADER_H_

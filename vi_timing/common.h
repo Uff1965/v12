@@ -34,6 +34,7 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #	define VI_R_CAST(T, s) reinterpret_cast<T>(s)
 #	define VI_S_CAST(T, s) static_cast<T>(s)
 #	define VI_MAYBE_UNUSED [[maybe_unused]]
+#	define VI_DEFARG(v) = (v)
 #else
 #	define VI_STD(s) s
 #	define VI_MEMORY_ORDER(s) s
@@ -41,6 +42,7 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #	define VI_R_CAST(T, s) (T)(s)
 #	define VI_S_CAST(T, s) (T)(s)
 #	define VI_MAYBE_UNUSED
+#	define VI_DEFARG(v)
 #endif
 
 #ifdef _MSC_VER

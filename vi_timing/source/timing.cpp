@@ -68,7 +68,7 @@ int vi_tmResults(vi_tmLogRAW_t fn, void* data)
 	std::scoped_lock lg_{ s_instance_guard };
 	for (const auto& [name, item] : s_instance)
 	{
-		assert(item.calls_cnt_ && item.amount_ >= item.calls_cnt_);
+		assert(/*item.calls_cnt_ &&*/ item.amount_ >= item.calls_cnt_);
 		if (!name.empty() && 0 == fn(name.c_str(), item.ticks_, item.amount_, item.calls_cnt_, data))
 		{
 			result = 0;
@@ -79,27 +79,23 @@ int vi_tmResults(vi_tmLogRAW_t fn, void* data)
 }
 
 void vi_tmInit(std::size_t n)
-{
-	std::scoped_lock lg_{ s_instance_guard };
+{	std::scoped_lock lg_{ s_instance_guard };
 	assert(s_instance.empty());
 	s_instance.reserve(n);
 }
 
 void vi_tmClear(const char* name)
-{
-	std::scoped_lock lg_{ s_instance_guard };
+{	std::scoped_lock lg_{ s_instance_guard };
+
 	if (name)
-	{
-		auto& item = s_instance[name];
+	{	auto& item = s_instance[name];
 		item.amount_ = 0;
 		item.calls_cnt_ = 0;
 		item.ticks_ = 0;
 	}
 	else
-	{
-		for (auto& [_, item] : s_instance)
-		{
-			item.amount_ = 0;
+	{	for (auto& [_, item] : s_instance)
+		{	item.amount_ = 0;
 			item.calls_cnt_ = 0;
 			item.ticks_ = 0;
 		}

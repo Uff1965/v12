@@ -21,64 +21,29 @@ namespace
 	namespace ch = std::chrono;
 	using namespace std::literals;
 
+	const auto _1 = (
 #if defined(_MSC_VER) && defined(_DEBUG)
-	// To automatically call the _CrtDumpMemoryLeaks function when the program ends
-	const auto _dummy0 = _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-
-	// Error sink is a message box. To be able to ignore errors in debugging sessions.
-	const auto _dummy1 = _set_error_mode(_OUT_TO_MSGBOX);
+		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF), // To automatically call the _CrtDumpMemoryLeaks function when the program ends
+		verify(-1 != _set_error_mode(_OUT_TO_MSGBOX)), // Error sink is a message box. To be able to ignore errors in debugging sessions.
 #endif
-
 #ifdef WIN32
-	const auto _dummy2 = verify(::SetThreadAffinityMask(::GetCurrentThread(), 0b0000'0001));
-	const auto _dummy3 = verify(::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS));
-	const auto _dummy4 = verify(::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL));
-
-	// Set output mode to handle virtual terminal sequences
-	const auto _dummy5 =
-	(	[]
-		{	if (const auto hOut = ::GetStdHandle(STD_OUTPUT_HANDLE); hOut != NULL && hOut != INVALID_HANDLE_VALUE)
+		verify(::SetThreadAffinityMask(::GetCurrentThread(), 0b0000'0001)),
+		verify(::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS)),
+		verify(::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL)),
+		[]
+		{	if (const auto hOut = ::GetStdHandle(STD_OUTPUT_HANDLE); verify(hOut != NULL && hOut != INVALID_HANDLE_VALUE))
 			{	if (DWORD dwMode = 0; FALSE != ::GetConsoleMode(hOut, &dwMode))
 				{	verify(FALSE != ::SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING));
 				}
 			}
 		}(),
-		nullptr
-	);
 #endif
+	nullptr
+	);
 
-	const std::unique_ptr<const char, void(*)(const char*)> _dummy6
-	{	"",
-		[](const char*) {vi_tm::report(vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowDiscreteness); }
-	};
-
-	VI_TM("Well, that's all!");
-	const auto initializing_global_variables_can_also_take_time = []{std::this_thread::sleep_for(100ms); return 0;}();
-
-	void warming(bool all = false, ch::milliseconds d = 1s)
-	{
-		if (0 != d.count())
-		{
-			std::atomic_bool done = false; // It must be defined before threads!!!
-			std::vector<std::thread> threads;
-			if (static const std::size_t hwcnt = std::thread::hardware_concurrency(); all && hwcnt > 1)
-			{	threads.reserve(hwcnt - 1U);
-				for (auto n = hwcnt; --n;)
-				{	threads.emplace_back([&done] { while (!done) {/**/ }});
-				}
-			}
-
-			for (const auto stop = ch::steady_clock::now() + d; ch::steady_clock::now() < stop;)
-			{/**/
-			}
-
-			for (auto& t : threads)
-			{	t.join();
-			}
-
-			done = true;
-		}
-	}
+	//VI_TM_INIT(vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowDiscreteness);
+	//VI_TM("Well, that's all!");
+	const auto initializing_global_variables_can_also_take_time = []{std::this_thread::sleep_for(10ms); return 0;}();
 
 	std::size_t l = 0;
 	const char sample[] = "global string";
@@ -233,12 +198,12 @@ VI_OPTIMIZE_ON
 
 int main()
 {
-	VI_TM_FUNC;
+//	VI_TM_FUNC;
 
-	warming();
+	vi_tm::warming();
 
-	tm_for();
-	tm_test();
+	//tm_for();
+	//tm_test();
 	lua_test();
 	python_test();
 

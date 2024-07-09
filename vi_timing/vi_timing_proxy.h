@@ -18,6 +18,7 @@
 #		define VI_TM_INIT(...) VI_MAYBE_UNUSED int VI_MAKE_UNIC_ID(_vi_tm_dummy_) = (__VA_ARGS__, 0)
 #		define VI_TM(...) VI_MAYBE_UNUSED int VI_MAKE_UNIC_ID(_vi_tm_dummy_) = (__VA_ARGS__, 0)
 #		define VI_TM_REPORT(...) (void)(__VA_ARGS__)
+#		define VI_TM_CLEAR(s) ((void)(s))
 #		define VI_TM_FUNC (void)0
 #	endif
 

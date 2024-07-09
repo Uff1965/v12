@@ -23,28 +23,12 @@ const auto _dummy0 = _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF
 const auto _dummy1 = _set_error_mode(_OUT_TO_MSGBOX); // Error sink is a message box. To be able to ignore errors.
 #endif
 
-VI_TM_INIT("Timing report:", reinterpret_cast<vi_tmLogSTR_t>(&std::fputs), stdout, 0xF2);
+VI_TM_INIT(0xF2);
 VI_TM("GLOBAL");
 
 namespace {
 	using namespace std::literals;
 	namespace ch = std::chrono;
-
-	void warming(bool all, ch::milliseconds ms)
-	{
-		if (0 != ms.count())
-		{
-			std::atomic_bool done = false; // It must be defined before 'threads'!!!
-			auto load = [&done] {while (!done) {/**/}}; //-V776
-
-			const auto hwcnt = std::thread::hardware_concurrency();
-			std::vector<std::thread> threads((all && hwcnt > 1) ? hwcnt - 1 : 0);
-			for (auto& t : threads) { t = std::thread{ load }; }
-			for (const auto stop = ch::steady_clock::now() + ms; ch::steady_clock::now() < stop;) {/*The thread is fully loaded.*/ }
-			done = true;
-			for (auto& t : threads) { t.join(); }
-		}
-	}
 
 	bool test_multithreaded()
 	{
@@ -170,7 +154,7 @@ int main()
 	endl(std::cout);
 
 	std::cout << "\nWarming... ";
-	warming(true, 500ms);
+	vi_tm::warming(true);
 	std::cout << "done";
 	endl(std::cout);
 

@@ -465,33 +465,34 @@ namespace
 	}
 
 	int collector_meterages(const char* name, vi_tmTicks_t total, std::size_t amount, std::size_t calls_cnt, void* _traits)
-	{
-		assert(_traits);
-		auto& traits = *static_cast<traits_t*>(_traits);
-		assert(calls_cnt && amount >= calls_cnt);
+	{	assert(_traits);
+		assert(amount >= calls_cnt);
 
-		auto& itm = traits.meterages_.emplace_back(name, total, amount, calls_cnt);
+		if (calls_cnt)
+		{	auto& traits = *static_cast<traits_t*>(_traits);
+			auto& itm = traits.meterages_.emplace_back(name, total, amount, calls_cnt);
 
-		if
-		(	const auto total_over_ticks = traits.overmeasure_ * itm.on_calls_cnt_;
-			itm.on_total_ > total_over_ticks + traits.discreteness_ * (1.0 + 0.01 * itm.on_calls_cnt_)
-		)
-		{	itm.total_time_ = traits.tick_duration_ * (itm.on_total_ - total_over_ticks);
-			itm.average_ = itm.total_time_ / itm.on_amount_;
-			itm.total_txt_ = to_string(itm.total_time_);
-			itm.average_txt_ = to_string(itm.average_);
-		}
+			if
+			(	const auto total_over_ticks = traits.overmeasure_ * itm.on_calls_cnt_;
+				itm.on_total_ > total_over_ticks + traits.discreteness_ * itm.on_calls_cnt_
+			)
+			{	itm.total_time_ = traits.tick_duration_ * (itm.on_total_ - total_over_ticks);
+				itm.average_ = itm.total_time_ / itm.on_amount_;
+				itm.total_txt_ = to_string(itm.total_time_);
+				itm.average_txt_ = to_string(itm.average_);
+			}
 
-		traits.max_len_total_ = std::max(traits.max_len_total_, itm.total_txt_.length());
-		traits.max_len_average_ = std::max(traits.max_len_average_, itm.average_txt_.length());
-		traits.max_len_name_ = std::max(traits.max_len_name_, itm.on_name_.length());
+			traits.max_len_total_ = std::max(traits.max_len_total_, itm.total_txt_.length());
+			traits.max_len_average_ = std::max(traits.max_len_average_, itm.average_txt_.length());
+			traits.max_len_name_ = std::max(traits.max_len_name_, itm.on_name_.length());
 
-		if (itm.on_amount_ > traits.max_amount_)
-		{	traits.max_amount_ = itm.on_amount_;
-			auto max_len_amount = static_cast<std::size_t>(std::floor(std::log10(itm.on_amount_)));
-			max_len_amount += max_len_amount / 3; // for thousand separators
-			max_len_amount += 1;
-			traits.max_len_amount_ = std::max(traits.max_len_amount_, max_len_amount);
+			if (itm.on_amount_ > traits.max_amount_)
+			{	traits.max_amount_ = itm.on_amount_;
+				auto max_len_amount = static_cast<std::size_t>(std::floor(std::log10(itm.on_amount_)));
+				max_len_amount += max_len_amount / 3; // for thousand separators
+				max_len_amount += 1;
+				traits.max_len_amount_ = std::max(traits.max_len_amount_, max_len_amount);
+			}
 		}
 
 		return 1; // Continue enumerate.
@@ -516,14 +517,12 @@ namespace
 	}
 
 	struct meterage_comparator_t
-	{
-		uint32_t flags_{};
+	{	uint32_t flags_{};
 
 		explicit meterage_comparator_t(uint32_t flags) noexcept : flags_{ flags } {}
 
 		bool operator ()(const traits_t::itm_t& l, const traits_t::itm_t& r) const
-		{
-			auto pr = &less<vi_tmSortBySpeed>;
+		{	auto pr = &less<vi_tmSortBySpeed>;
 			switch (flags_ & static_cast<uint32_t>(vi_tmSortMask))
 			{
 			case static_cast<uint32_t>(vi_tmSortByName):
@@ -572,6 +571,11 @@ namespace
 
 } // namespace {
 
+VI_TM_API void VI_TM_CALL vi_tmWarming(int all, unsigned int ms)
+{
+	warming(0 != all, ch::milliseconds{ ms });
+}
+
 meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* data)
 	:traits_{ traits }, fn_{ fn }, data_{ data }
 {
@@ -586,8 +590,8 @@ int meterage_format_t::print(const strings_t& strings, char fill_name) const
 
 	if (!fill_name)
 	{	const auto len =
-			number_len_ + 1 + 1 +
-			traits_.max_len_name_ + 1 + 1 +
+			number_len_ + 2 +
+			traits_.max_len_name_ + 2 +
 			traits_.max_len_average_ + 1 +
 			traits_.max_len_total_ + 1 +
 			traits_.max_len_amount_;
@@ -600,10 +604,10 @@ int meterage_format_t::print(const strings_t& strings, char fill_name) const
 		str << std::setw(number_len_) << strings.number_ << ". "; // Number
 
 		str.fill(fill_name);
-		str << std::setw(traits_.max_len_name_ + 1) << std::left << strings.name_; // Name
+		str << std::setw(traits_.max_len_name_) << std::left << strings.name_; // Name
 		str.fill(' ');
 
-		str << ':';
+		str << ": ";
 		str << std::setw(traits_.max_len_average_) << std::right << strings.average_ << ' '; // Average
 		str << std::setw(traits_.max_len_total_) << strings.total_ << ' '; // Total
 		str << std::setw(traits_.max_len_amount_) << strings.amount_ << '\n'; // Amount

@@ -109,10 +109,15 @@ extern "C" {
 // Definition of vi_tmGetTicks() function for different platforms. vvvvvvvvvvvv
 #if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__amd64__) // MSC, GCC or CLANG on Intel
 	static inline vi_tmTicks_t vi_tmGetTicks(void)
-	{	VI_STD(uint32_t) _;
+	{
+//*
+		VI_STD(uint32_t) _;
 		const VI_STD(uint64_t) result = __rdtscp(&_);
 		_mm_lfence();
 		return result;
+/*/
+		return __rdtsc();
+//*/
 	}
 #elif __ARM_ARCH >= 8 // ARMv8 (RaspberryPi4)
 	static inline vi_tmTicks_t vi_tmGetTicks(void)
@@ -139,9 +144,9 @@ extern "C" {
 
 	// Main functions vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 	VI_TM_API void VI_TM_CALL vi_tmInit(VI_STD(size_t) n);
-	VI_TM_API vi_tmAtomicTicks_t* VI_TM_CALL vi_tmItem(const char* name, VI_STD(size_t) amount);
+	VI_TM_API vi_tmAtomicTicks_t* VI_TM_CALL vi_tmItem(const char* name, VI_STD(size_t) amount VI_DEFARG(1));
 	VI_TM_API int VI_TM_CALL vi_tmResults(vi_tmLogRAW_t fn, void* data);
-	VI_TM_API void VI_TM_CALL vi_tmClear(const char* name);
+	VI_TM_API void VI_TM_CALL vi_tmClear(const char* name VI_DEFARG((const char*)0));
 	// Main functions ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	// Supporting functions. vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -167,7 +172,7 @@ extern "C" {
 	{	vi_tmAtomicTicks_t* item_;
 		vi_tmTicks_t start_; // Order matters!!! 'start_' must be initialized last!
 	};
-	static inline struct vi_tmItem_t vi_tmStart(const char* name, VI_STD(size_t) amount) VI_NOEXCEPT
+	static inline struct vi_tmItem_t vi_tmStart(const char* name, VI_STD(size_t) amount VI_DEFARG(1)) VI_NOEXCEPT
 	{	struct vi_tmItem_t result;
 		result.item_ = vi_tmItem(name, amount);
 		result.start_ = vi_tmGetTicks();
@@ -177,6 +182,9 @@ extern "C" {
 	{	const vi_tmTicks_t end = vi_tmGetTicks();
 		(void)VI_STD(atomic_fetch_add_explicit)(itm->item_, end - itm->start_, VI_MEMORY_ORDER(memory_order_relaxed));
 	}
+
+	VI_TM_API void VI_TM_CALL vi_tmWarming(int all, unsigned int ms);
+
 	// Supporting functions. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 #	ifdef __cplusplus
@@ -198,10 +206,10 @@ namespace vi_tm
 		std::uint32_t flags_;
 	public:
 		init_t
-		(	std::string title = "Timing report:",
+		(	std::uint32_t flags = vi_tmSortByTime,
+			std::string title = "Timing report:",
 			vi_tmLogSTR_t fn = reinterpret_cast<vi_tmLogSTR_t>(&std::fputs),
 			void* data = stdout,
-			std::uint32_t flags = vi_tmSortByTime,
 			std::size_t reserve = 64
 		)
 		: title_{ std::move(title) }, cb_{ fn }, data_{ data }, flags_{ flags }
@@ -229,17 +237,20 @@ namespace vi_tm
 	{	return vi_tmReport(flags, fn, data);
 	}
 
+	inline void warming(bool all = false, unsigned int ms = 500) { vi_tmWarming((all? 1: 0), ms); }
+
 } // namespace vi_tm {
 
 #	if defined(VI_TM_DISABLE)
 #		define VI_TM_INIT(...) VI_MAYBE_UNUSED int VI_MAKE_UNIC_ID(_vi_tm_dummy_) = (__VA_ARGS__, 0)
 #		define VI_TM(...) VI_MAYBE_UNUSED int VI_MAKE_UNIC_ID(_vi_tm_dummy_) = (__VA_ARGS__, 0)
 #		define VI_TM_REPORT(...) ((void)(__VA_ARGS__, 0))
-#		define VI_TM_FUNC ((void)0)
+#		define VI_TM_CLEAR(s) ((void)(s))
 #	else
 #		define VI_TM_INIT(...) vi_tm::init_t VI_MAKE_UNIC_ID(_vi_tm_init_)(__VA_ARGS__)
 #		define VI_TM(...) vi_tm::timer_t VI_MAKE_UNIC_ID(_vi_tm_variable_) (__VA_ARGS__)
 #		define VI_TM_REPORT(...) vi_tm::report(__VA_ARGS__)
+#		define VI_TM_CLEAR(...) vi_tmClear(__VA_ARGS__)
 #	endif
 
 #	define VI_TM_FUNC VI_TM( VI_FUNCNAME )
