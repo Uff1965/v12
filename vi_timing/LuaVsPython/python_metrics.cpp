@@ -25,7 +25,24 @@ namespace
 	static constexpr int CNT = 1'000;
 }
 
-#define YIELD(s) /*std::this_thread::yield(); VI_TM_CLEAR(s)*/
+#define YIELD(s) \
+	std::this_thread::yield(); \
+	for(int n = 0; n < 5; ++n) \
+	{	VI_TM(s); \
+	} \
+	VI_TM_CLEAR(s)
+
+#define START(s) \
+	YIELD(" " s); \
+	{	VI_TM(" " s)
+
+#define START_F(s) \
+	YIELD("*" s); \
+	for (auto &ptr : arr) \
+	{	VI_TM("*" s)
+
+#define END } \
+	do{} while(0)
 
 void python_test()
 {	VI_TM_CLEAR();
@@ -33,68 +50,57 @@ void python_test()
 	PyObject* mod = nullptr;
 	std::array<PyObject*, CNT> arr;
 
-	YIELD("1 Initialize");
-	{	VI_TM("1 Initialize");
+	START("1 Initialize");
 		Py_Initialize();
-	}
+	END;
 
-	YIELD("2 dofile");
-	{	VI_TM("2 dofile");
+	START("2 dofile");
 		mod = PyImport_ImportModule("sample");
 		assert(mod);
-	}
+	END;
 
-	YIELD("*2 dofile");
-	for(auto &ptr : arr)
-	{	VI_TM("*2 dofile");
+	START_F("2 dofile");
 		ptr = PyImport_ImportModule("sample");
 		assert(ptr);
-	}
+	END;
 
-	YIELD("3 Get string");
-	{	VI_TM("3 Get string");
+	START("3 Get string");
 		auto p = PyObject_GetAttrString(mod, "str");
 		assert(p);
 		char* sz{};
 		verify(PyArg_Parse(p, "s", &sz));
 		assert(sz && 0 == strcmp(sz, sample));
 		Py_DECREF(p);
-	}
+	END;
 
-	YIELD("*3 Get string");
-	for (auto ptr : arr)
-	{	VI_TM("*3 Get string");
+	START_F("3 Get string");
 		auto p = PyObject_GetAttrString(ptr, "str");
 		assert(p);
 		char* sz{};
 		verify(PyArg_Parse(p, "s", &sz));
 		assert(sz && 0 == strcmp(sz, sample));
 		Py_DECREF(p);
-	}
+	END;
 
-	YIELD("4 Call empty");
-	{	VI_TM("4 Call empty");
+	START("4 Call empty");
 		auto func = PyObject_GetAttrString(mod, "empty_func");
 		assert(func);
 		auto ret = PyObject_CallNoArgs(func);
 		assert(ret);
 		Py_DECREF(ret);
 		Py_DECREF(func);
-	}
+	END;
 
-	YIELD("*4 Call empty");
-	for (auto ptr : arr)
-	{	VI_TM("*4 Call empty");
+	START_F("4 Call empty");
 		auto func = PyObject_GetAttrString(ptr, "empty_func");
 		assert(func);
 		auto ret = PyObject_CallNoArgs(func);
 		assert(ret);
 		Py_DECREF(ret);
 		Py_DECREF(func);
-	}
+	END;
 
-	YIELD("5 Call strlen");
-	{	VI_TM("5 Call strlen");
+	START("5 Call strlen");
 		auto func = PyObject_GetAttrString(mod, "strlen_func");
 		assert(func);
 		auto args = Py_BuildValue("(s)", "global string");
@@ -107,11 +113,9 @@ void python_test()
 		Py_DECREF(ret);
 		Py_DECREF(args);
 		Py_DECREF(func);
-	}
+	END;
 
-	YIELD("*5 Call strlen");
-	for (auto ptr : arr)
-	{	VI_TM("*5 Call strlen");
+	START_F("5 Call strlen");
 		auto func = PyObject_GetAttrString(ptr, "strlen_func");
 		assert(func);
 		auto args = Py_BuildValue("(s)", "global string");
@@ -124,23 +128,19 @@ void python_test()
 		Py_DECREF(ret);
 		Py_DECREF(args);
 		Py_DECREF(func);
-	}
+	END;
 
-	YIELD("98 close");
-	{	VI_TM("98 close");
+	START("98 close");
 		Py_DECREF(mod);
-	}
+	END;
 
-	YIELD("*98 close");
-	for (auto ptr : arr)
-	{	VI_TM("*98 close");
+	START_F("98 close");
 		Py_DECREF(ptr);
-	}
+	END;
 
-	YIELD("99 Finalize");
-	{	VI_TM("99 Finalize");
+	START("99 Finalize");
 		Py_Finalize();
-	}
+	END;
 
 	std::cout << "Python test1 result:\n";
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);

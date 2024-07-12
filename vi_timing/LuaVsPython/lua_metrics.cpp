@@ -20,7 +20,24 @@
 
 using namespace std::string_literals;
 
-#define YIELD(s) /*std::this_thread::yield(); VI_TM_CLEAR(s)*/
+#define YIELD(s) \
+	std::this_thread::yield(); \
+	for(int n = 0; n < 5; ++n) \
+	{	VI_TM(s); \
+	} \
+	VI_TM_CLEAR(s)
+
+#define START(s) \
+	YIELD(" " s); \
+	{	VI_TM(" " s)
+
+#define START_F(s) \
+	YIELD("*" s); \
+	for (auto &ptr : arr) \
+	{	VI_TM("*" s)
+
+#define END } \
+	do{} while(0)
 
 namespace
 {
@@ -34,90 +51,73 @@ void lua_test()
 	lua_State* L{};
 	std::array<lua_State*, CNT> arr;
 
-	YIELD("1 Initialize");
-	{	VI_TM("1 Initialize");
-	}
+	START("1 Initialize");
+	END;
 
-	YIELD("2 dofile");
-	{	VI_TM("2 dofile");
+	START("2 dofile");
 		L = luaL_newstate();
 //		luaL_openlibs(L);
 		verify(LUA_OK == luaL_dofile(L, "sample.lua"));
-	}
+	END;
 
-	YIELD("*2 dofile");
-	for (auto &ptr : arr)
-	{	VI_TM("*2 dofile");
+	START_F("2 dofile");
 		ptr = luaL_newstate();
 //		luaL_openlibs(ptr);
 		verify(LUA_OK == luaL_dofile(ptr, "sample.lua"));
-	}
+	END;
 
-	YIELD("3 Get string");
-	{	VI_TM("3 Get string");
+	START("3 Get string");
 		verify(LUA_TSTRING == lua_getglobal(L, "str"));
 		std::size_t len = 0;
 		auto sz = lua_tolstring(L, -1, &len);
 		assert(len == strlen(sz) && 0 == strcmp(sz, "global string"));
 		lua_pop(L, 1);
-	}
+	END;
 
-	YIELD("*3 Get string");
-	for (auto ptr : arr)
-	{	VI_TM("*3 Get string");
+	START_F("3 Get string");
 		verify(LUA_TSTRING == lua_getglobal(ptr, "str"));
 		std::size_t len = 0;
 		auto sz = lua_tolstring(ptr, -1, &len);
 		assert(sz && len == strlen(sz) && 0 == strcmp(sz, "global string"));
 		lua_pop(ptr, 1);
-	}
+	END;
 
-	YIELD("4 Call empty");
-	{	VI_TM("4 Call empty");
+	START("4 Call empty");
 		verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
 		verify(LUA_OK == lua_pcall(L, 0, 0, 0));
-	}
+	END;
 
-	YIELD("*4 Call empty");
-	for (auto ptr : arr)
-	{	VI_TM("*4 Call empty");
+	START_F("4 Call empty");
 		verify(LUA_TFUNCTION == lua_getglobal(ptr, "empty_func"));
 		verify(LUA_OK == lua_pcall(ptr, 0, 0, 0));
-	}
+	END;
 
-	YIELD("5 Call strlen");
-	{	VI_TM("5 Call strlen");
+	START("5 Call strlen");
 		verify(LUA_TFUNCTION == lua_getglobal(L, "strlen_func"));
 		verify(lua_pushstring(L, sample));
 		verify(LUA_OK == lua_pcall(L, 1, 1, 0));
 		verify(strlen(sample) == lua_tointeger(L, -1)); //-V2513
 		lua_pop(L, 1);
-	}
+	END;
 
-	YIELD("*5 Call strlen");
-	for (auto ptr: arr)
-	{	VI_TM("*5 Call strlen");
+	START_F("5 Call strlen");
 		verify(LUA_TFUNCTION == lua_getglobal(ptr, "strlen_func"));
 		verify(lua_pushstring(ptr, sample));
 		verify(LUA_OK == lua_pcall(ptr, 1, 1, 0));
 		verify(strlen(sample) == lua_tointeger(ptr, -1)); //-V2513
 		lua_pop(ptr, 1);
-	}
+	END;
 
-	YIELD("98 close");
-	{	VI_TM("98 close");
+	START("98 close");
 		lua_close(L);
-	}
+	END;
 
-	YIELD("*98 close");
-	for (auto ptr : arr)
-	{	VI_TM("*98 close");
+	START_F("98 close");
 		lua_close(ptr);
-	}
+	END;
 
-	YIELD("99 Finalize");
-	{	VI_TM("99 Finalize");
-	}
+	START("99 Finalize");
+	END;
 
 	std::cout << "Lua test result:\n";
 	static constexpr auto flags = vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowDiscreteness;
