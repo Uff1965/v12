@@ -102,6 +102,7 @@ void python_test()
 				auto args = PyTuple_Pack(1, list);
 				auto result = PyObject_CallObject(func, args);
 				Py_DECREF(result);
+				Py_DECREF(args);
 			END;
 
 			for(auto &&i: sample_sorted)
