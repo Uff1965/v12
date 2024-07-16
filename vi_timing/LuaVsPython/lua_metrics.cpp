@@ -74,7 +74,7 @@ void lua_test()
 		END;
 
 		{
-			START("6 Call bubble_sort");
+			START("6 Call bubble_sort (arg init)");
 				// Создаем и заполняем таблицу с числами для сортировки
 				lua_createtable(L, static_cast<unsigned>(std::size(sample_sorted)), 0);
 				for (int i = 1; i <= std::size(sample_sorted); ++i) {
@@ -82,17 +82,16 @@ void lua_test()
 					lua_pushnumber(L, sample_raw[i - 1]); // Значение (5, 4, 3, 2, 1)
 					lua_settable(L, -3);
 				}
+			END;
 
+			START("7 Call bubble_sort (call)");
 				// Помещаем функцию bubble_sort на вершину стека
 				verify(LUA_TFUNCTION == lua_getglobal(L, "bubble_sort"));
-
+				// Копируем таблицу на вершину стека
 				lua_pushvalue(L, -2);
-
-				START("7 Call call(bubble_sort)");
-					verify(LUA_OK == lua_pcall(L, 1, 0, 0));
-				END;
-				assert(1 == lua_gettop(L));
+				verify(LUA_OK == lua_pcall(L, 1, 0, 0));
 			END;
+			assert(1 == lua_gettop(L));
 
 			lua_pushnil(L); // Первый ключ
 			while (lua_next(L, -2) != 0)

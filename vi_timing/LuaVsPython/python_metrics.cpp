@@ -84,27 +84,24 @@ void python_test()
 
 		{	PyObject* list = nullptr;
 
-			START("6 Call bubble_sort");
-				{	list = PyList_New(std::size(sample_raw));
-					assert(list);
-					for (int i = 0; i < std::size(sample_raw); ++i)
-					{	auto obj = PyLong_FromLong(sample_raw[i]);
-						assert(obj);
-						verify(0 == PyList_SetItem(list, i, obj));
-					}
+			START("6 Call bubble_sort (arg init)");
+				list = PyList_New(std::size(sample_raw));
+				assert(list);
+				for (int i = 0; i < std::size(sample_raw); ++i)
+				{	auto obj = PyLong_FromLong(sample_raw[i]);
+					assert(obj);
+					verify(0 == PyList_SetItem(list, i, obj));
 				}
+			END;
 
+			START("7 Call bubble_sort (call)");
+				// Вызываем функцию и получаем результат
 				auto func = PyDict_GetItemString(dict, "bubble_sort");
 				assert(func && PyCallable_Check(func));
-
 				// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
 				auto args = PyTuple_Pack(1, list);
-
-				// Вызываем функцию и получаем результат
-				START("7 Call call(bubble_sort)");
-					auto result = PyObject_CallObject(func, args);
-					Py_DECREF(result);
-				END;
+				auto result = PyObject_CallObject(func, args);
+				Py_DECREF(result);
 			END;
 
 			for(auto &&i: sample_sorted)

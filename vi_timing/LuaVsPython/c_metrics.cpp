@@ -100,21 +100,22 @@ void c_test()
 		{
 			std::vector<int> args;
 
-			START("6 Call bubble_sort");
-				auto func = ccc::bubble_sort;
-				assert(func);
+			auto func = ccc::bubble_sort;
+			assert(func);
 
+			START("6 Call bubble_sort (arg init)");
 				// Создаем аргументы для вызова функции
 				args.assign(std::begin(sample_raw), std::end(sample_raw));
+			END;
 
+			START("7 Call bubble_sort (call)");
 				// Вызываем функцию и получаем результат
-				START("7 Call call(bubble_sort)");
-					func(args);
-				END;
+				func(args);
 			END;
 
 			for (unsigned i = 0; i < std::size(sample_sorted); ++i )
-			{	assert(args[i] == sample_sorted[i]);
+			{	const auto v = args[i];
+				assert(v == sample_sorted[i]);
 			}
 		}
 
