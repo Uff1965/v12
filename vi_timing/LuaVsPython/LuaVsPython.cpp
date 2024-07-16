@@ -3,16 +3,20 @@
 
 #include "header.h"
 
+#include "c_metrics.h"
 #include "lua_metrics.h"
 #include "python_metrics.h"
+#include "LuaVsPython.h"
 
 #include <Windows.h>
 
 #include <vi_timing/timing.h>
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <thread>
 #include <vector>
 
@@ -194,7 +198,13 @@ VI_OPTIMIZE_OFF
 	}
 VI_OPTIMIZE_ON
 
+int raw[sample_size];
+int sorted[sample_size];
+
 } // namespace
+
+const int(&sample_raw)[sample_size] = raw;
+const int(&sample_sorted)[sample_size] = sorted;
 
 int main()
 {
@@ -202,8 +212,22 @@ int main()
 
 	vi_tm::warming();
 
+	{	assert(std::size(sample_raw) == std::size(sample_sorted));
+
+		std::mt19937 gen{ std::random_device{}() };
+		std::uniform_int_distribution distrib{ 1, 100'000 };
+
+		for (auto &&i: raw)
+		{	i = distrib(gen);
+		}
+
+		std::copy(std::begin(sample_raw), std::end(sample_raw), std::begin(sorted));
+		std::ranges::sort(sorted);
+	}
+
 	//tm_for();
 	//tm_test();
+	c_test();
 	lua_test();
 	python_test();
 

@@ -3,143 +3,127 @@
 
 // https://docs.python.org/3/extending/index.html
 // https://docs.python.org/3/extending/embedding.html
+// https://docs.python.org/3/c-api/index.html
 
 #include "header.h"
 #include "lua_metrics.h"
 
 #include <vi_timing/timing.h>
-
+#include "LuaVsPython.h"
 #include <Python.h>
 
-#include <array>
 #include <cassert>
 #include <iostream>
 #include <string>
 #include <thread>
 
+#define START(s) \
+	std::this_thread::yield(); \
+	for (auto n = 5; n--;) \
+	{	VI_TM(s); \
+	} \
+	VI_TM_CLEAR(s); \
+	do { VI_TM(s)
+
+#define END \
+	} while(0)
+
 using namespace std::string_literals;
 
 namespace
 {
-	static constexpr char sample[] = "global string";
-	static constexpr int CNT = 1'000;
+	constexpr char sample[] = "global string";
 }
-
-#define YIELD(s) \
-	std::this_thread::yield(); \
-	for(int n = 0; n < 5; ++n) \
-	{	VI_TM(s); \
-	} \
-	VI_TM_CLEAR(s)
-
-#define START(s) \
-	YIELD(" " s); \
-	{	VI_TM(" " s)
-
-#define START_F(s) \
-	YIELD("*" s); \
-	for (auto &ptr : arr) \
-	{	VI_TM("*" s)
-
-#define END } \
-	do{} while(0)
 
 void python_test()
 {	VI_TM_CLEAR();
 
-	PyObject* mod = nullptr;
-	std::array<PyObject*, CNT> arr;
+	START(" *** PYTHON ***");
 
-	START("1 Initialize");
-		Py_Initialize();
-	END;
+		PyObject* module = nullptr;
+		PyObject* dict = nullptr;
 
-	START("2 dofile");
-		mod = PyImport_ImportModule("sample");
-		assert(mod);
-	END;
+		START("1 Initialize");
+			Py_Initialize();
+		END;
 
-	START_F("2 dofile");
-		ptr = PyImport_ImportModule("sample");
-		assert(ptr);
-	END;
+		START("2 dofile");
+			verify(module = PyImport_ImportModule("sample"));
+			verify(dict = PyModule_GetDict(module));
+		END;
 
-	START("3 Get string");
-		auto p = PyObject_GetAttrString(mod, "str");
-		assert(p);
-		char* sz{};
-		verify(PyArg_Parse(p, "s", &sz));
-		assert(sz && 0 == strcmp(sz, sample));
-		Py_DECREF(p);
-	END;
+		START("3 Get string");
+			auto p = PyDict_GetItemString(dict, "global_string");
+			assert(p);
+			char* sz{};
+			verify(PyArg_Parse(p, "s", &sz));
+			assert(sz && 0 == strcmp(sz, sample));
+		END;
 
-	START_F("3 Get string");
-		auto p = PyObject_GetAttrString(ptr, "str");
-		assert(p);
-		char* sz{};
-		verify(PyArg_Parse(p, "s", &sz));
-		assert(sz && 0 == strcmp(sz, sample));
-		Py_DECREF(p);
-	END;
+		START("4 Call empty");
+			auto func = PyDict_GetItemString(dict, "empty_func");
+			assert(func);
+			auto ret = PyObject_CallNoArgs(func);
+			assert(ret);
+			Py_DECREF(ret);
+		END;
 
-	START("4 Call empty");
-		auto func = PyObject_GetAttrString(mod, "empty_func");
-		assert(func);
-		auto ret = PyObject_CallNoArgs(func);
-		assert(ret);
-		Py_DECREF(ret);
-		Py_DECREF(func);
-	END;
+		START("5 Call strlen");
+			auto func = PyDict_GetItemString(dict, "strlen_func");
+			assert(func);
+			auto args = Py_BuildValue("(s)", "global string");
+			assert(args);
+			auto ret = PyObject_Call(func, args, nullptr);
+			assert(ret);
+			int len = 0;
+			verify(PyArg_Parse(ret, "i", &len));
+			assert(strlen(sample) == len);
+			Py_DECREF(ret);
+			Py_DECREF(args);
+		END;
 
-	START_F("4 Call empty");
-		auto func = PyObject_GetAttrString(ptr, "empty_func");
-		assert(func);
-		auto ret = PyObject_CallNoArgs(func);
-		assert(ret);
-		Py_DECREF(ret);
-		Py_DECREF(func);
-	END;
+		{	PyObject* list = nullptr;
 
-	START("5 Call strlen");
-		auto func = PyObject_GetAttrString(mod, "strlen_func");
-		assert(func);
-		auto args = Py_BuildValue("(s)", "global string");
-		assert(args);
-		auto ret = PyObject_Call(func, args, nullptr);
-		assert(ret);
-		int len = 0;
-		verify(PyArg_Parse(ret, "i", &len));
-		assert(strlen(sample) == len);
-		Py_DECREF(ret);
-		Py_DECREF(args);
-		Py_DECREF(func);
-	END;
+			START("6 Call bubble_sort");
+				{	list = PyList_New(std::size(sample_raw));
+					assert(list);
+					for (int i = 0; i < std::size(sample_raw); ++i)
+					{	auto obj = PyLong_FromLong(sample_raw[i]);
+						assert(obj);
+						verify(0 == PyList_SetItem(list, i, obj));
+					}
+				}
 
-	START_F("5 Call strlen");
-		auto func = PyObject_GetAttrString(ptr, "strlen_func");
-		assert(func);
-		auto args = Py_BuildValue("(s)", "global string");
-		assert(args);
-		auto ret = PyObject_Call(func, args, nullptr);
-		assert(ret);
-		int len = 0;
-		verify(PyArg_Parse(ret, "i", &len));
-		assert(strlen(sample) == len);
-		Py_DECREF(ret);
-		Py_DECREF(args);
-		Py_DECREF(func);
-	END;
+				auto func = PyDict_GetItemString(dict, "bubble_sort");
+				assert(func && PyCallable_Check(func));
 
-	START("98 close");
-		Py_DECREF(mod);
-	END;
+				// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
+				auto args = PyTuple_Pack(1, list);
 
-	START_F("98 close");
-		Py_DECREF(ptr);
-	END;
+				// Вызываем функцию и получаем результат
+				START("7 Call call(bubble_sort)");
+					auto result = PyObject_CallObject(func, args);
+					Py_DECREF(result);
+				END;
+			END;
 
-	START("99 Finalize");
-		Py_Finalize();
+			for(auto &&i: sample_sorted)
+			{	auto obj = PyList_GetItem(list, &i - sample_sorted);
+				assert(obj);
+				int val = 0;
+				verify(PyArg_Parse(obj, "i", &val));
+				assert(val == i);
+			}
+			Py_DECREF(list);
+		}
+
+		START("98 close");
+			Py_DECREF(module);
+		END;
+
+		START("99 Finalize");
+			Py_Finalize();
+		END;
 	END;
 
 	std::cout << "Python test1 result:\n";

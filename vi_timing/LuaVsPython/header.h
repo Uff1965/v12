@@ -1,5 +1,5 @@
 #ifndef VI_TIMING_LUAVSPYTHON_HEADER_H_
-#define VI_TIMING_LUAVSPYTHON_HEADER_H_
+#   define VI_TIMING_LUAVSPYTHON_HEADER_H_
 #	pragma once
 
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -13,6 +13,7 @@
 #endif
 
 #include <cassert>
+#include <utility>
 
 inline bool verify(bool b) { assert(b); return b; } //-V:verify:530 //-V3549
 

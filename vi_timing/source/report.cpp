@@ -58,19 +58,19 @@ namespace
 	constexpr auto operator""_Ms(long double v) noexcept { return ch::duration<double, std::mega>(v); };
 	constexpr auto operator""_Ms(unsigned long long v) noexcept { return ch::duration<double, std::mega>(v); };
 
-	[[nodiscard]] constexpr double round(double num, unsigned char prec, unsigned char dec = 1)
-	{ // Rounding to 'dec' decimal place and no more than 'prec' significant symbols.
-		assert(num >= 0 && prec > dec && prec <= 3 + dec);
+	[[nodiscard]] double round(double num, unsigned char place, unsigned char dec = 1)
+	{ // Rounding to 'dec' decimal place and no more than 'place' significant symbols.
+		assert(num >= 0 && place > dec && place <= 3 + dec);
 
 		double result = num;
-		if (num >= 0 && prec > dec && prec <= 3 + dec)
+		if (num >= 0 && place > dec && place <= 3 + dec)
 		{	auto power = static_cast<signed char>(std::floor(std::log10(num)));
 			auto t = 1U + (3 + power % 3) % 3;
-			if (prec > t)
-			{	t += std::min(dec, static_cast<unsigned char>(prec - t));
+			if (place > t)
+			{	t += std::min(dec, static_cast<unsigned char>(place - t));
 			}
 			else
-			{	t = prec;
+			{	t = place;
 			}
 			power -= t - 1;
 
@@ -94,6 +94,7 @@ namespace
 		constexpr static samples[] =
 		{
 			{__LINE__, 0.0, 0.0, 1, 0},
+			{__LINE__, 4e-308, 0.0, 4, 1},
 			{__LINE__, 0.0, 0.0, 2, 1},
 			{__LINE__, 0.0, 0.0, 4, 1},
 			{__LINE__, 0.0, 0.0, 5, 2},
@@ -185,6 +186,7 @@ namespace
 		static constexpr samples[] =
 		{
 			{__LINE__, 0.0_ps, "0.0ps"},
+			{__LINE__, 4e-308_ps, "0.0ps", 4, 1},
 			{__LINE__, 0.123456789us, "123.5ns", 4},
 			{__LINE__, 1.23456789s, "1s ", 1, 0},
 			{__LINE__, 1.23456789s, "1.2s ", 3},

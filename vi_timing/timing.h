@@ -27,7 +27,7 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 //-V1042
 
 #ifndef VI_TIMING_TIMING_H
-#	define VI_TIMING_TIMING_H 3.0
+#	define VI_TIMING_TIMING_H "3.0"
 #	pragma once
 
 #if defined(_WIN32)
@@ -110,13 +110,13 @@ extern "C" {
 #if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__amd64__) // MSC, GCC or CLANG on Intel
 	static inline vi_tmTicks_t vi_tmGetTicks(void)
 	{
-//*
+/*
+		return __rdtsc();
+/*/
 		VI_STD(uint32_t) _;
 		const VI_STD(uint64_t) result = __rdtscp(&_);
 		_mm_lfence();
 		return result;
-/*/
-		return __rdtsc();
 //*/
 	}
 #elif __ARM_ARCH >= 8 // ARMv8 (RaspberryPi4)
