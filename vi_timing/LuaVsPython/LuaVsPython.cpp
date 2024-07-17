@@ -45,7 +45,7 @@ namespace
 	nullptr
 	);
 
-	//VI_TM_INIT(vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowDiscreteness);
+	//VI_TM_INIT(vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowResolution);
 	//VI_TM("Well, that's all!");
 	const auto initializing_global_variables_can_also_take_time = []{std::this_thread::sleep_for(10ms); return 0;}();
 

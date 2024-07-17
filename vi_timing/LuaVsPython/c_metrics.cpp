@@ -20,7 +20,7 @@
 	VI_TM_CLEAR(s); \
 	do { VI_TM(s)
 
-#define END \
+#define FINISH \
 	} while(0)
 
 using namespace std::string_literals;
@@ -69,24 +69,22 @@ void c_test()
 	START(" *** C ***   ");
 
 		START("1 Initialize");
-		END;
+		FINISH;
 
 		START("2 dofile");
-		END;
-
+		FINISH;
 
 		START("3 Get string");
 			const char *sz = ccc::global_string;
 			std::size_t len = sz? strlen(sz): 0ULL;
-
 			assert(sz && len == strlen(sample) && 0 == strcmp(sz, sample));
-		END;
+		FINISH;
 
 		START("4 Call empty");
 			auto func = ccc::empty_func;
 			assert(func);
 			func();
-		END;
+		FINISH;
 
 		START("5 Call strlen");
 			auto func = ccc::strlen_func;
@@ -95,36 +93,35 @@ void c_test()
 			assert(args);
 			auto len = func(args);
 			assert(strlen(sample) == len);
-		END;
+		FINISH;
 
 		{
 			std::vector<int> args;
 
-			auto func = ccc::bubble_sort;
-			assert(func);
-
 			START("6 Call bubble_sort (arg init)");
 				// Создаем аргументы для вызова функции
 				args.assign(std::begin(sample_raw), std::end(sample_raw));
-			END;
+			FINISH;
 
 			START("7 Call bubble_sort (call)");
+				auto func = ccc::bubble_sort;
+				assert(func);
 				// Вызываем функцию и получаем результат
 				func(args);
-			END;
+			FINISH;
 
 			for (unsigned i = 0; i < std::size(sample_sorted); ++i )
-			{	const auto v = args[i];
+			{	[[maybe_unused]] const auto v = args[i];
 				assert(v == sample_sorted[i]);
 			}
 		}
 
 		START("98 close");
-		END;
+		FINISH;
 
 		START("99 Finalize");
-		END;
-	END;
+		FINISH;
+	FINISH;
 
 	std::cout << "C test result:\n";
 	static constexpr auto flags =
@@ -133,6 +130,6 @@ void c_test()
 		vi_tmShowOverhead |
 		vi_tmShowDuration |
 		vi_tmShowUnit |
-		vi_tmShowDiscreteness;
+		vi_tmShowResolution;
 	VI_TM_REPORT(flags);
 }

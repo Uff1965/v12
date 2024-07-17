@@ -26,7 +26,7 @@
 	VI_TM_CLEAR(s); \
 	do { VI_TM(s)
 
-#define END \
+#define FINISH \
 	} while(0)
 
 using namespace std::string_literals;
@@ -44,13 +44,13 @@ void lua_test()
 		lua_State* L{};
 
 		START("1 Initialize");
-		END;
+		FINISH;
 
 		START("2 dofile");
 			L = luaL_newstate();
 			luaL_openlibs(L);
 			verify(LUA_OK == luaL_dofile(L, "sample.lua"));
-		END;
+		FINISH;
 
 		START("3 Get string");
 			verify(LUA_TSTRING == lua_getglobal(L, "global_string"));
@@ -58,12 +58,12 @@ void lua_test()
 			auto sz = lua_tolstring(L, -1, &len);
 			assert(sz && len == strlen(sz) && 0 == strcmp(sz, "global string"));
 			lua_pop(L, 1);
-		END;
+		FINISH;
 
 		START("4 Call empty");
 			verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
 			verify(LUA_OK == lua_pcall(L, 0, 0, 0));
-		END;
+		FINISH;
 
 		START("5 Call strlen");
 			verify(LUA_TFUNCTION == lua_getglobal(L, "strlen_func"));
@@ -71,7 +71,7 @@ void lua_test()
 			verify(LUA_OK == lua_pcall(L, 1, 1, 0));
 			verify(strlen(sample) == lua_tointeger(L, -1)); //-V2513
 			lua_pop(L, 1);
-		END;
+		FINISH;
 
 		{
 			START("6 Call bubble_sort (arg init)");
@@ -82,7 +82,7 @@ void lua_test()
 					lua_pushnumber(L, sample_raw[i - 1]); // Значение (5, 4, 3, 2, 1)
 					lua_settable(L, -3);
 				}
-			END;
+			FINISH;
 
 			START("7 Call bubble_sort (call)");
 				// Помещаем функцию bubble_sort на вершину стека
@@ -90,7 +90,7 @@ void lua_test()
 				// Копируем таблицу на вершину стека
 				lua_pushvalue(L, -2);
 				verify(LUA_OK == lua_pcall(L, 1, 0, 0));
-			END;
+			FINISH;
 			assert(1 == lua_gettop(L));
 
 			lua_pushnil(L); // Первый ключ
@@ -109,11 +109,11 @@ void lua_test()
 
 		START("98 close");
 			lua_close(L);
-		END;
+		FINISH;
 
 		START("99 Finalize");
-		END;
-	END;
+		FINISH;
+	FINISH;
 
 	std::cout << "Lua test result:\n";
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);

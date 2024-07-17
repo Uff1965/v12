@@ -110,13 +110,13 @@ extern "C" {
 #if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__amd64__) // MSC, GCC or CLANG on Intel
 	static inline vi_tmTicks_t vi_tmGetTicks(void)
 	{
-/*
-		return __rdtsc();
-/*/
+//*
 		VI_STD(uint32_t) _;
 		const VI_STD(uint64_t) result = __rdtscp(&_);
 		_mm_lfence();
 		return result;
+/*/
+		return __rdtsc();
 //*/
 	}
 #elif __ARM_ARCH >= 8 // ARMv8 (RaspberryPi4)
@@ -163,7 +163,7 @@ extern "C" {
 		vi_tmShowOverhead = 0x0010,
 		vi_tmShowUnit = 0x0020,
 		vi_tmShowDuration = 0x0040,
-		vi_tmShowDiscreteness = 0x0080,
+		vi_tmShowResolution = 0x0080,
 		vi_tmShowMask = 0xF0, // 0b1111'0000
 	};
 

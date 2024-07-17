@@ -25,7 +25,7 @@
 	VI_TM_CLEAR(s); \
 	do { VI_TM(s)
 
-#define END \
+#define FINISH \
 	} while(0)
 
 using namespace std::string_literals;
@@ -45,12 +45,12 @@ void python_test()
 
 		START("1 Initialize");
 			Py_Initialize();
-		END;
+		FINISH;
 
 		START("2 dofile");
 			verify(module = PyImport_ImportModule("sample"));
 			verify(dict = PyModule_GetDict(module));
-		END;
+		FINISH;
 
 		START("3 Get string");
 			auto p = PyDict_GetItemString(dict, "global_string");
@@ -58,7 +58,7 @@ void python_test()
 			char* sz{};
 			verify(PyArg_Parse(p, "s", &sz));
 			assert(sz && 0 == strcmp(sz, sample));
-		END;
+		FINISH;
 
 		START("4 Call empty");
 			auto func = PyDict_GetItemString(dict, "empty_func");
@@ -66,7 +66,7 @@ void python_test()
 			auto ret = PyObject_CallNoArgs(func);
 			assert(ret);
 			Py_DECREF(ret);
-		END;
+		FINISH;
 
 		START("5 Call strlen");
 			auto func = PyDict_GetItemString(dict, "strlen_func");
@@ -80,7 +80,7 @@ void python_test()
 			assert(strlen(sample) == len);
 			Py_DECREF(ret);
 			Py_DECREF(args);
-		END;
+		FINISH;
 
 		{	PyObject* list = nullptr;
 
@@ -92,7 +92,7 @@ void python_test()
 					assert(obj);
 					verify(0 == PyList_SetItem(list, i, obj));
 				}
-			END;
+			FINISH;
 
 			START("7 Call bubble_sort (call)");
 				// Вызываем функцию и получаем результат
@@ -103,7 +103,7 @@ void python_test()
 				auto result = PyObject_CallObject(func, args);
 				Py_DECREF(result);
 				Py_DECREF(args);
-			END;
+			FINISH;
 
 			for(auto &&i: sample_sorted)
 			{	auto obj = PyList_GetItem(list, &i - sample_sorted);
@@ -117,12 +117,12 @@ void python_test()
 
 		START("98 close");
 			Py_DECREF(module);
-		END;
+		FINISH;
 
 		START("99 Finalize");
 			Py_Finalize();
-		END;
-	END;
+		FINISH;
+	FINISH;
 
 	std::cout << "Python test1 result:\n";
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);

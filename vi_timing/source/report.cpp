@@ -394,7 +394,7 @@ namespace
 		return (dirty <= pure) ? 0.0 : static_cast<double>(dirty - pure) / (CNT_EXT * CNT);
 	}
 
-	double discreteness()
+	double resolution()
 	{	auto CNT = 64U;
 		vi_tmTicks_t last, first;
 		std::this_thread::yield(); // Reduce the likelihood of interrupting measurements by switching threads.
@@ -443,7 +443,7 @@ namespace
 		std::uint32_t flags_;
 		const duration_t tick_duration_ = seconds_per_tick();
 		const double overmeasure_ = overmeasure(); // ticks
-		const double discreteness_ = discreteness(); // ticks
+		const double resolution_ = resolution(); // ticks
 		std::size_t max_amount_{};
 		std::size_t max_len_name_{ title_name_.length()};
 		std::size_t max_len_total_{ title_total_.length() };
@@ -706,8 +706,8 @@ VI_TM_API int VI_TM_CALL vi_tmReport(std::uint32_t flags, vi_tmLogSTR_t fn, void
 	if (flags & static_cast<uint32_t>(vi_tmShowUnit))
 	{	str << "One tick corresponds: " << traits.tick_duration_ << ";\n";
 	}
-	if (flags & static_cast<uint32_t>(vi_tmShowDiscreteness))
-	{	str << "Discreteness: " << traits.tick_duration_ * traits.discreteness_ << ";\n";
+	if (flags & static_cast<uint32_t>(vi_tmShowResolution))
+	{	str << "Resolution: " << traits.tick_duration_ * traits.resolution_ << ";\n";
 	}
 	if (flags & static_cast<uint32_t>(vi_tmShowOverhead))
 	{	str << "Overmeasure: " << traits.tick_duration_ * traits.overmeasure_ << ";\n";
