@@ -1,9 +1,6 @@
--- Define a global string variable
 global_string = "global string"
 
--- Define an empty function
 function empty_func()
-    -- This function does nothing
 end
 
 function less(l, r)

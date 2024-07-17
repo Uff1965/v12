@@ -1,9 +1,6 @@
-# Define a global string variable
 global_string = "global string"
 
-# Define an empty function
 def empty_func():
-    """This function does nothing."""
     pass
 
 def less(l, r):

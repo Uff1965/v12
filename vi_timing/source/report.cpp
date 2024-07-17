@@ -475,8 +475,8 @@ namespace
 			auto& itm = traits.meterages_.emplace_back(name, total, amount, calls_cnt);
 
 			if
-			(	const auto total_over_ticks = static_cast<std::size_t>(traits.overmeasure_ * itm.on_calls_cnt_);
-				itm.on_total_ > total_over_ticks + 1 * itm.on_amount_
+			(	const auto total_over_ticks = traits.overmeasure_ * itm.on_calls_cnt_;
+				itm.on_total_ > static_cast<std::size_t>(total_over_ticks + traits.resolution_) + 1 * itm.on_amount_
 			)
 			{	itm.total_time_ = traits.tick_duration_ * (itm.on_total_ - total_over_ticks);
 				itm.average_ = itm.total_time_ / itm.on_amount_;

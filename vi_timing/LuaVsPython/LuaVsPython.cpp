@@ -214,7 +214,7 @@ int main()
 
 	{	assert(std::size(sample_raw) == std::size(sample_sorted));
 
-		std::mt19937 gen{ std::random_device{}() };
+		std::mt19937 gen{/*std::random_device{}()*/ }; // For ease of debugging, the sequence is constant.
 		std::uniform_int_distribution distrib{ 1, 100'000 };
 
 		for (auto &&i: raw)
