@@ -38,21 +38,21 @@ namespace
 void python_test()
 {	VI_TM_CLEAR();
 
-	START(" *** PYTHON ***");
+	START("  *** PYTHON ***");
 
 		PyObject* module = nullptr;
 		PyObject* dict = nullptr;
 
-		START("1 Initialize");
+		START(" 1 Initialize");
 			Py_Initialize();
 		FINISH;
 
-		START("2 dofile");
+		START(" 2 dofile");
 			verify(module = PyImport_ImportModule("sample"));
 			verify(dict = PyModule_GetDict(module));
 		FINISH;
 
-		START("3 Get string");
+		START(" 3 Get string");
 			auto p = PyDict_GetItemString(dict, "global_string");
 			assert(p);
 			char* sz{};
@@ -60,7 +60,7 @@ void python_test()
 			assert(sz && 0 == strcmp(sz, sample));
 		FINISH;
 
-		START("4 Call empty");
+		START(" 4 Call empty");
 			auto func = PyDict_GetItemString(dict, "empty_func");
 			assert(func);
 			auto ret = PyObject_CallNoArgs(func);
@@ -68,7 +68,7 @@ void python_test()
 			Py_DECREF(ret);
 		FINISH;
 
-		START("5 Call strlen");
+		START(" 5 Call strlen");
 			auto func = PyDict_GetItemString(dict, "strlen_func");
 			assert(func);
 			auto args = Py_BuildValue("(s)", "global string");
@@ -84,7 +84,7 @@ void python_test()
 
 		{	PyObject* list = nullptr;
 
-			START("6 Call bubble_sort (arg init)");
+			START(" 6 Call bubble_sort (arg init)");
 				list = PyList_New(std::size(sample_raw));
 				assert(list);
 				for (int i = 0; i < std::size(sample_raw); ++i)
@@ -94,7 +94,7 @@ void python_test()
 				}
 			FINISH;
 
-			START("7 Call bubble_sort (call)");
+			START(" 7 Call bubble_sort (call)");
 				// Вызываем функцию и получаем результат
 				auto func = PyDict_GetItemString(dict, "bubble_sort");
 				assert(func && PyCallable_Check(func));
@@ -113,6 +113,48 @@ void python_test()
 				assert(val == i);
 			}
 			Py_DECREF(list);
+		}
+
+		{
+			PyObject* result = nullptr;
+			PyObject* args = nullptr;
+
+			START(" 8 Call bubble_sort_ex (arg init)");
+				args = PyTuple_New(2);
+				assert(args);
+				{
+					auto tuple = PyTuple_New(std::size(sample_raw));
+					for (int i = 0; i < std::size(sample_raw); ++i)
+					{
+						auto obj = PyLong_FromLong(sample_raw[i]);
+						assert(obj);
+						verify(0 == PyTuple_SetItem(tuple, i, obj));
+					}
+					verify(0 == PyTuple_SetItem(args, 0, tuple));
+				}
+				{
+					Py_INCREF(Py_None);
+					verify(0 == PyTuple_SetItem(args, 1, Py_None));
+				}
+			FINISH;
+
+			START(" 9 Call bubble_sort_ex (call)");
+				// Вызываем функцию и получаем результат
+				auto func = PyDict_GetItemString(dict, "bubble_sort_ex");
+				assert(func && PyCallable_Check(func));
+				// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
+				result = PyObject_CallObject(func, args);
+			FINISH;
+
+			for (auto&& i : sample_sorted)
+			{	auto obj = PyList_GetItem(result, &i - sample_sorted);
+				assert(obj);
+				int val = 0;
+				verify(PyArg_Parse(obj, "i", &val));
+				assert(val == i);
+			}
+			Py_DECREF(args);
+			Py_DECREF(result);
 		}
 
 		START("98 close");

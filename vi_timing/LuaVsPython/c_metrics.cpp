@@ -61,6 +61,30 @@ namespace ccc
 			}
 		} while (swapped);
 	}
+
+	std::vector<int> bubble_sort_ex(const std::vector<int>& a, bool (*cmp)(int, int) = nullptr)
+	{
+		std::vector<int> result{ a };
+		if (!cmp)
+		{	cmp = [](int l, int r) { return l < r; };
+		}
+
+		bool swapped;
+		do
+		{
+			swapped = false;
+			for (unsigned i = 1; i < a.size(); ++i)
+			{
+				if (cmp(result[i], result[i - 1]))
+				{
+					result[i - 1] = std::exchange(result[i], result[i - 1]);
+					swapped = true;
+				}
+			}
+		} while (swapped);
+
+		return result;
+	}
 } // namespace ccc
 
 void c_test()
@@ -111,6 +135,27 @@ void c_test()
 			FINISH;
 
 			for (unsigned i = 0; i < std::size(sample_sorted); ++i )
+			{	[[maybe_unused]] const auto v = args[i];
+				assert(v == sample_sorted[i]);
+			}
+		}
+
+		{
+			std::vector<int> args;
+
+			START("8 Call bubble_sort_ex (arg init)");
+				// Создаем аргументы для вызова функции
+				args.assign(std::begin(sample_raw), std::end(sample_raw));
+			FINISH;
+
+			START("9 Call bubble_sort_ex (call)");
+				auto func = ccc::bubble_sort_ex;
+				assert(func);
+				// Вызываем функцию и получаем результат
+				args = func(args, [](int l, int r) {return l < r; });
+			FINISH;
+
+			for (unsigned i = 0; i < std::size(sample_sorted); ++i)
 			{	[[maybe_unused]] const auto v = args[i];
 				assert(v == sample_sorted[i]);
 			}
