@@ -44,13 +44,19 @@ void lua_test()
 		lua_State* L{};
 
 		START(" 1 Initialize");
-		FINISH;
-
-		START(" 2 dofile");
 			L = luaL_newstate();
 			luaL_openlibs(L);
-			verify(LUA_OK == luaL_dofile(L, "sample.lua"));
 		FINISH;
+
+//		START(" 2 dofile");
+//			verify(LUA_OK == luaL_dofile(L, "sample.lua"));
+			START(" 2.1 dofile (load+compile)");
+				verify(LUA_OK == luaL_loadfile(L, "sample.lua"));
+			FINISH;
+			START(" 2.2 dofile (call)");
+				verify(LUA_OK == lua_pcall(L, 0, 0, 0));
+			FINISH;
+//		FINISH;
 
 		START(" 3 Get string");
 			verify(LUA_TSTRING == lua_getglobal(L, "global_string"));

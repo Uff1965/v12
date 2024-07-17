@@ -92,25 +92,29 @@ void c_test()
 
 	START(" *** C ***   ");
 
-		START("1 Initialize");
+		START(" 1 Initialize");
 		FINISH;
 
-		START("2 dofile");
-		FINISH;
+//		START(" 2 dofile");
+			START(" 2.1 dofile (load+compile)");
+			FINISH;
+			START(" 2.2 dofile (call)");
+			FINISH;
+//		FINISH;
 
-		START("3 Get string");
+		START(" 3 Get string");
 			const char *sz = ccc::global_string;
 			std::size_t len = sz? strlen(sz): 0ULL;
 			assert(sz && len == strlen(sample) && 0 == strcmp(sz, sample));
 		FINISH;
 
-		START("4 Call empty");
+		START(" 4 Call empty");
 			auto func = ccc::empty_func;
 			assert(func);
 			func();
 		FINISH;
 
-		START("5 Call strlen");
+		START(" 5 Call strlen");
 			auto func = ccc::strlen_func;
 			assert(func);
 			const char *args = ccc::global_string;
@@ -122,12 +126,12 @@ void c_test()
 		{
 			std::vector<int> args;
 
-			START("6 Call bubble_sort (arg init)");
+			START(" 6 Call bubble_sort (arg init)");
 				// Создаем аргументы для вызова функции
 				args.assign(std::begin(sample_raw), std::end(sample_raw));
 			FINISH;
 
-			START("7 Call bubble_sort (call)");
+			START(" 7 Call bubble_sort (call)");
 				auto func = ccc::bubble_sort;
 				assert(func);
 				// Вызываем функцию и получаем результат
@@ -143,12 +147,12 @@ void c_test()
 		{
 			std::vector<int> args;
 
-			START("8 Call bubble_sort_ex (arg init)");
+			START(" 8 Call bubble_sort_ex (arg init)");
 				// Создаем аргументы для вызова функции
 				args.assign(std::begin(sample_raw), std::end(sample_raw));
 			FINISH;
 
-			START("9 Call bubble_sort_ex (call)");
+			START(" 9 Call bubble_sort_ex (call)");
 				auto func = ccc::bubble_sort_ex;
 				assert(func);
 				// Вызываем функцию и получаем результат

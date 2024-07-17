@@ -13,9 +13,11 @@
 #include <Python.h>
 
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <thread>
+#include <sstream>
 
 #define START(s) \
 	std::this_thread::yield(); \
@@ -47,10 +49,23 @@ void python_test()
 			Py_Initialize();
 		FINISH;
 
-		START(" 2 dofile");
-			verify(module = PyImport_ImportModule("sample"));
-			verify(dict = PyModule_GetDict(module));
-		FINISH;
+//		START(" 2 dofile");
+//			verify(module = PyImport_ImportModule("sample"));
+			PyObject *code = nullptr;
+			START(" 2.1 dofile (load+compile)");
+				std::ifstream file("sample.py");
+				assert(file);
+				std::ostringstream ss;
+				ss << file.rdbuf();
+				verify(code = Py_CompileString(ss.str().c_str(), "sample.py", Py_file_input));
+				verify(dict = PyDict_New());
+				verify(0 == PyDict_SetItemString(dict, "__builtins__", PyEval_GetBuiltins()));
+			FINISH;
+			START(" 2.2 dofile (call)");
+				module = PyEval_EvalCode(code, dict, dict);
+				Py_DECREF(code);
+			FINISH;
+//		FINISH;
 
 		START(" 3 Get string");
 			auto p = PyDict_GetItemString(dict, "global_string");
