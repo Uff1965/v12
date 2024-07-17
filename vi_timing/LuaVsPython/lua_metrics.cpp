@@ -33,6 +33,13 @@
 
 using namespace std::string_literals;
 
+extern "C" int l_cmp(lua_State * L)
+{	const double l = lua_tonumber(L, 1);
+	const double r = lua_tonumber(L, 2);
+	lua_pushboolean(L, (l < r)); // result
+	return 1; // number of results
+}
+
 namespace
 {
 	constexpr char sample[] = "global string";
@@ -152,8 +159,9 @@ void lua_test()
 				verify(LUA_TFUNCTION == lua_getglobal(L, "bubble_sort_ex"));
 				// перемещаем таблицу на вершину стека
 				lua_insert(L, -2);
-				assert(2 == lua_gettop(L)); // На стеке: ф-я и таблица
-				verify(LUA_OK == lua_pcall(L, 1, 1, 0));
+				lua_pushcfunction(L, l_cmp);
+				assert(3 == lua_gettop(L)); // На стеке: ф-я и таблица и компаратор
+				verify(LUA_OK == lua_pcall(L, 2, 1, 0));
 				assert(1 == lua_gettop(L)); // На вершине стека остался результат
 			FINISH;
 

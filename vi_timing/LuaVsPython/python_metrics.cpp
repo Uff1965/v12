@@ -32,6 +32,11 @@
 
 using namespace std::string_literals;
 
+extern "C" PyObject* p_cmp(PyObject*, PyObject* args)
+{	int l, r;
+	return verify(PyArg_ParseTuple(args, "ii", &l, &r)) ? PyBool_FromLong(l < r) : nullptr;
+}
+
 namespace
 {
 	constexpr char sample[] = "global string";
@@ -149,8 +154,17 @@ void python_test()
 					}
 					verify(0 == PyTuple_SetItem(args, 0, tuple));
 				}
-				{	Py_INCREF(Py_None);
-					verify(0 == PyTuple_SetItem(args, 1, Py_None));
+				{
+					static PyMethodDef cmp_def =
+					{	nullptr,  // Имя функции
+						p_cmp,    // Указатель на функцию
+						METH_VARARGS | METH_STATIC,  // Тип аргументов
+						nullptr  // Документация
+					};
+
+					auto func = PyCFunction_NewEx(&cmp_def, NULL, NULL);
+					assert(func);
+					verify(0 == PyTuple_SetItem(args, 1, func));
 				}
 			FINISH;
 
