@@ -91,59 +91,11 @@ void python_test()
 			Py_DECREF(ret);
 		FINISH;
 
-		START(" 5 Call strlen");
-			auto func = PyDict_GetItemString(dict, "strlen_func");
-			assert(func);
-			auto args = Py_BuildValue("(s)", "global string");
-			assert(args);
-			auto ret = PyObject_Call(func, args, nullptr);
-			assert(ret);
-			int len = 0;
-			verify(PyArg_Parse(ret, "i", &len));
-			assert(strlen(sample) == len);
-			Py_DECREF(ret);
-			Py_DECREF(args);
-		FINISH;
-
-		{	PyObject* list = nullptr;
-
-			START(" 6.1 Call bubble_sort (arg init)");
-				verify(list = PyList_New(std::size(sample_raw)));
-				for (int i = 0; i < std::size(sample_raw); ++i)
-				{	auto obj = PyLong_FromLong(sample_raw[i]);
-					assert(obj);
-					verify(0 == PyList_SetItem(list, i, obj));
-				}
-			FINISH;
-
-			START(" 6.2 Call bubble_sort (call)");
-				// Вызываем функцию и получаем результат
-				auto func = PyDict_GetItemString(dict, "bubble_sort");
-				assert(func && PyCallable_Check(func));
-				// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
-				auto args = PyTuple_Pack(1, list);
-				assert(args);
-				auto result = PyObject_CallObject(func, args);
-				assert(result);
-				Py_DECREF(result);
-				Py_DECREF(args);
-			FINISH;
-
-			for(auto &&i: sample_sorted)
-			{	auto obj = PyList_GetItem(list, &i - sample_sorted);
-				assert(obj);
-				int val = 0;
-				verify(PyArg_Parse(obj, "i", &val));
-				assert(val == i);
-			}
-			Py_DECREF(list);
-		}
-
 		{
 			PyObject* result = nullptr;
 			PyObject* args = nullptr;
 
-			START(" 7.1 Call bubble_sort_ex (arg init)");
+			START(" 5.1 Call bubble_sort (arg init)");
 				verify(args = PyTuple_New(2));
 				{	auto tuple = PyTuple_New(std::size(sample_raw));
 					assert(tuple);
@@ -168,9 +120,9 @@ void python_test()
 				}
 			FINISH;
 
-			START(" 7.2 Call bubble_sort_ex (call)");
+			START(" 5.2 Call bubble_sort (call)");
 				// Вызываем функцию и получаем результат
-				auto func = PyDict_GetItemString(dict, "bubble_sort_ex");
+				auto func = PyDict_GetItemString(dict, "bubble_sort");
 				assert(func && PyCallable_Check(func));
 				// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
 				verify(result = PyObject_CallObject(func, args));

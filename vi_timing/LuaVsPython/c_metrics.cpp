@@ -39,30 +39,7 @@ namespace ccc
 	{	// This function does nothing
 	}
 
-	// Define a function that returns the length of a string
-	std::size_t strlen_func(const char* sz)
-	{	// Return the length of the string
-		return sz ? strlen(sz) : 0ULL;
-	}
-
-	void bubble_sort(std::vector<int> &a)
-	{
-		bool swapped;
-		do
-		{
-			swapped = false;
-			for (unsigned i = 1; i < a.size(); ++i)
-			{
-				if (a[i - 1] > a[i])
-				{
-					a[i - 1] = std::exchange(a[i], a[i - 1]);
-					swapped = true;
-				}
-			}
-		} while (swapped);
-	}
-
-	std::vector<int> bubble_sort_ex(const std::vector<int>& a, bool (*cmp)(int, int) = nullptr)
+	std::vector<int> bubble_sort(const std::vector<int>& a, bool (*cmp)(int, int) = nullptr)
 	{
 		std::vector<int> result{ a };
 		if (!cmp)
@@ -114,46 +91,16 @@ void c_test()
 			func();
 		FINISH;
 
-		START(" 5 Call strlen");
-			auto func = ccc::strlen_func;
-			assert(func);
-			const char *args = ccc::global_string;
-			assert(args);
-			auto len = func(args);
-			assert(strlen(sample) == len);
-		FINISH;
-
 		{
 			std::vector<int> args;
 
-			START(" 6.1 Call bubble_sort (arg init)");
+			START(" 5.1 Call bubble_sort (arg init)");
 				// Создаем аргументы для вызова функции
 				args.assign(std::begin(sample_raw), std::end(sample_raw));
 			FINISH;
 
-			START(" 6.2 Call bubble_sort (call)");
+			START(" 5.2 Call bubble_sort (call)");
 				auto func = ccc::bubble_sort;
-				assert(func);
-				// Вызываем функцию и получаем результат
-				func(args);
-			FINISH;
-
-			for (unsigned i = 0; i < std::size(sample_sorted); ++i )
-			{	[[maybe_unused]] const auto v = args[i];
-				assert(v == sample_sorted[i]);
-			}
-		}
-
-		{
-			std::vector<int> args;
-
-			START(" 7.1 Call bubble_sort_ex (arg init)");
-				// Создаем аргументы для вызова функции
-				args.assign(std::begin(sample_raw), std::end(sample_raw));
-			FINISH;
-
-			START(" 7.2 Call bubble_sort_ex (call)");
-				auto func = ccc::bubble_sort_ex;
 				assert(func);
 				// Вызываем функцию и получаем результат
 				args = func(args, [](int l, int r) {return l < r; });

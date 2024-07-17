@@ -97,17 +97,8 @@ void lua_test()
 			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
 
-		START(" 5 Call strlen");
-			verify(LUA_TFUNCTION == lua_getglobal(L, "strlen_func"));
-			verify(lua_pushstring(L, sample));
-			verify(LUA_OK == lua_pcall(L, 1, 1, 0));
-			verify(strlen(sample) == lua_tointeger(L, -1)); //-V2513
-			lua_pop(L, 1);
-			assert(0 == lua_gettop(L)); // Стек пуст
-		FINISH;
-
 		{
-			START(" 6.1 Call bubble_sort (arg init)");
+			START(" 5.1 Call bubble_sort (arg init)");
 				// Создаем и заполняем таблицу с числами для сортировки
 				lua_createtable(L, static_cast<unsigned>(std::size(sample_sorted)), 0);
 				for (int i = 1; i <= std::size(sample_sorted); ++i) {
@@ -118,45 +109,9 @@ void lua_test()
 				assert(1 == lua_gettop(L)); // На стеке таблица
 			FINISH;
 
-			START(" 6.2 Call bubble_sort (call)");
+			START(" 5.2 Call bubble_sort (call)");
 				// Помещаем функцию bubble_sort на вершину стека
 				verify(LUA_TFUNCTION == lua_getglobal(L, "bubble_sort"));
-				// Копируем таблицу на вершину стека
-				lua_pushvalue(L, -2);
-				assert(3 == lua_gettop(L)); // На стеке: ф-я и две ссылки на таблицу
-				verify(LUA_OK == lua_pcall(L, 1, 0, 0));
-				assert(1 == lua_gettop(L)); // На стеке осталась одна ссылка на таблицу
-			FINISH;
-
-			lua_pushnil(L); // Первый ключ
-			while (lua_next(L, -2) != 0)
-			{	// Используем 'ключ' (по индексу -2) и 'значение' (по индексу -1)
-				assert(lua_isinteger(L, -2));
-				assert(lua_isnumber(L, -1));
-				const auto i = lua_tointeger(L, -2);
-				const auto v = lua_tointeger(L, -1);
-				assert(sample_sorted[i - 1] == v);
-				lua_pop(L, 1);
-			}
-			lua_pop(L, 1);
-			assert(0 == lua_gettop(L)); // Стек пуст
-		}
-
-		{
-			START(" 7.1 Call bubble_sort_ex (arg init)");
-				// Создаем и заполняем таблицу с числами для сортировки
-				lua_createtable(L, static_cast<unsigned>(std::size(sample_sorted)), 0);
-				for (int i = 1; i <= std::size(sample_sorted); ++i) {
-					lua_pushnumber(L, i); // Ключ
-					lua_pushnumber(L, sample_raw[i - 1]); // Значение (5, 4, 3, 2, 1)
-					lua_settable(L, -3);
-				}
-				assert(1 == lua_gettop(L)); // На стеке таблица
-			FINISH;
-
-			START(" 7.2 Call bubble_sort_ex (call)");
-				// Помещаем функцию bubble_sort на вершину стека
-				verify(LUA_TFUNCTION == lua_getglobal(L, "bubble_sort_ex"));
 				// перемещаем таблицу на вершину стека
 				lua_insert(L, -2);
 				lua_pushcfunction(L, l_cmp);
