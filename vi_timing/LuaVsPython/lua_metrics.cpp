@@ -14,7 +14,9 @@
 #include <lauxlib.h>
 
 #include <cassert>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <thread>
 
@@ -41,22 +43,37 @@ void lua_test()
 
 	START("  *** LUA ***   ");
 
+		std::string text;
+		START(" 0 Load text");
+			std::ifstream file("sample.lua");
+			assert(file);
+			std::ostringstream ss;
+			ss << file.rdbuf();
+			text = ss.str();
+		FINISH;
+
 		lua_State* L{};
 
 		START(" 1 Initialize");
 			L = luaL_newstate();
 			luaL_openlibs(L);
+			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
 
-//		START(" 2 dofile");
 //			verify(LUA_OK == luaL_dofile(L, "sample.lua"));
-			START(" 2.1 dofile (load+compile)");
-				verify(LUA_OK == luaL_loadfile(L, "sample.lua"));
-			FINISH;
-			START(" 2.2 dofile (call)");
-				verify(LUA_OK == lua_pcall(L, 0, 0, 0));
-			FINISH;
-//		FINISH;
+		START(" 2.1 dofile (load+compile)");
+//				verify(LUA_OK == luaL_loadfile(L, "sample.lua"));
+			verify(LUA_OK == luaL_loadstring(L, text.c_str()));
+			/* !!!NOTE!!!
+			Чтобы выполнить скомпилированную строку Lua в разных lua_State,
+			можно использовать функцию lua_dump для сохранения скомпилированного кода в байт-код,
+			а затем загрузить и выполнить этот байт-код в других состояниях Lua с помощью lua_load*/
+			assert(1 == lua_gettop(L)); // На стеке скомпилированный код
+		FINISH;
+		START(" 2.2 dofile (call)");
+			verify(LUA_OK == lua_pcall(L, 0, 0, 0));
+			assert(0 == lua_gettop(L)); // Стек пуст
+		FINISH;
 
 		START(" 3 Get string");
 			verify(LUA_TSTRING == lua_getglobal(L, "global_string"));
@@ -64,11 +81,13 @@ void lua_test()
 			auto sz = lua_tolstring(L, -1, &len);
 			assert(sz && len == strlen(sz) && 0 == strcmp(sz, "global string"));
 			lua_pop(L, 1);
+			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
 
 		START(" 4 Call empty");
 			verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
 			verify(LUA_OK == lua_pcall(L, 0, 0, 0));
+			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
 
 		START(" 5 Call strlen");
@@ -77,10 +96,11 @@ void lua_test()
 			verify(LUA_OK == lua_pcall(L, 1, 1, 0));
 			verify(strlen(sample) == lua_tointeger(L, -1)); //-V2513
 			lua_pop(L, 1);
+			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
 
 		{
-			START(" 6 Call bubble_sort (arg init)");
+			START(" 6.1 Call bubble_sort (arg init)");
 				// Создаем и заполняем таблицу с числами для сортировки
 				lua_createtable(L, static_cast<unsigned>(std::size(sample_sorted)), 0);
 				for (int i = 1; i <= std::size(sample_sorted); ++i) {
@@ -88,15 +108,17 @@ void lua_test()
 					lua_pushnumber(L, sample_raw[i - 1]); // Значение (5, 4, 3, 2, 1)
 					lua_settable(L, -3);
 				}
+				assert(1 == lua_gettop(L)); // На стеке таблица
 			FINISH;
 
-			START(" 7 Call bubble_sort (call)");
+			START(" 6.2 Call bubble_sort (call)");
 				// Помещаем функцию bubble_sort на вершину стека
 				verify(LUA_TFUNCTION == lua_getglobal(L, "bubble_sort"));
 				// Копируем таблицу на вершину стека
 				lua_pushvalue(L, -2);
+				assert(3 == lua_gettop(L)); // На стеке: ф-я и две ссылки на таблицу
 				verify(LUA_OK == lua_pcall(L, 1, 0, 0));
-				assert(1 == lua_gettop(L)); // На вершине стека осталась только таблица
+				assert(1 == lua_gettop(L)); // На стеке осталась одна ссылка на таблицу
 			FINISH;
 
 			lua_pushnil(L); // Первый ключ
@@ -110,11 +132,11 @@ void lua_test()
 				lua_pop(L, 1);
 			}
 			lua_pop(L, 1);
-			assert(0 == lua_gettop(L));
+			assert(0 == lua_gettop(L)); // Стек пуст
 		}
 
 		{
-			START(" 8 Call bubble_sort_ex (arg init)");
+			START(" 7.1 Call bubble_sort_ex (arg init)");
 				// Создаем и заполняем таблицу с числами для сортировки
 				lua_createtable(L, static_cast<unsigned>(std::size(sample_sorted)), 0);
 				for (int i = 1; i <= std::size(sample_sorted); ++i) {
@@ -122,13 +144,15 @@ void lua_test()
 					lua_pushnumber(L, sample_raw[i - 1]); // Значение (5, 4, 3, 2, 1)
 					lua_settable(L, -3);
 				}
+				assert(1 == lua_gettop(L)); // На стеке таблица
 			FINISH;
 
-			START(" 9 Call bubble_sort_ex (call)");
+			START(" 7.2 Call bubble_sort_ex (call)");
 				// Помещаем функцию bubble_sort на вершину стека
 				verify(LUA_TFUNCTION == lua_getglobal(L, "bubble_sort_ex"));
 				// перемещаем таблицу на вершину стека
 				lua_insert(L, -2);
+				assert(2 == lua_gettop(L)); // На стеке: ф-я и таблица
 				verify(LUA_OK == lua_pcall(L, 1, 1, 0));
 				assert(1 == lua_gettop(L)); // На вершине стека остался результат
 			FINISH;
@@ -144,7 +168,7 @@ void lua_test()
 				lua_pop(L, 1);
 			}
 			lua_pop(L, 1);
-			assert(0 == lua_gettop(L));
+			assert(0 == lua_gettop(L)); // Стек пуст
 		}
 
 		START("98 close");

@@ -34,8 +34,7 @@ If not, see <https://www.gnu.org/licenses/gpl-3.0.html#license-text>.
 #include <unordered_map>
 
 struct item_t
-{
-	std::atomic<vi_tmTicks_t> ticks_{ 0 };
+{	std::atomic<vi_tmTicks_t> ticks_{ 0 };
 	std::size_t amount_{ 0 };
 	std::size_t calls_cnt_{ 0 };
 };

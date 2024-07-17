@@ -42,6 +42,15 @@ void python_test()
 
 	START("  *** PYTHON ***");
 
+		std::string text;
+		START(" 0 Load text");
+			std::ifstream file("sample.py");
+			assert(file);
+			std::ostringstream ss;
+			ss << file.rdbuf();
+			text = ss.str();
+		FINISH;
+
 		PyObject* module = nullptr;
 		PyObject* dict = nullptr;
 
@@ -49,23 +58,17 @@ void python_test()
 			Py_Initialize();
 		FINISH;
 
-//		START(" 2 dofile");
 //			verify(module = PyImport_ImportModule("sample"));
-			PyObject *code = nullptr;
-			START(" 2.1 dofile (load+compile)");
-				std::ifstream file("sample.py");
-				assert(file);
-				std::ostringstream ss;
-				ss << file.rdbuf();
-				verify(code = Py_CompileString(ss.str().c_str(), "sample.py", Py_file_input));
-				verify(dict = PyDict_New());
-				verify(0 == PyDict_SetItemString(dict, "__builtins__", PyEval_GetBuiltins()));
-			FINISH;
-			START(" 2.2 dofile (call)");
-				module = PyEval_EvalCode(code, dict, dict);
-				Py_DECREF(code);
-			FINISH;
-//		FINISH;
+		PyObject *code = nullptr;
+		START(" 2.1 dofile (load+compile)");
+			verify(code = Py_CompileString(text.c_str(), "sample.py", Py_file_input));
+			verify(dict = PyDict_New());
+			verify(0 == PyDict_SetItemString(dict, "__builtins__", PyEval_GetBuiltins()));
+		FINISH;
+		START(" 2.2 dofile (call)");
+			verify(module = PyEval_EvalCode(code, dict, dict));
+			Py_DECREF(code);
+		FINISH;
 
 		START(" 3 Get string");
 			auto p = PyDict_GetItemString(dict, "global_string");
@@ -99,9 +102,8 @@ void python_test()
 
 		{	PyObject* list = nullptr;
 
-			START(" 6 Call bubble_sort (arg init)");
-				list = PyList_New(std::size(sample_raw));
-				assert(list);
+			START(" 6.1 Call bubble_sort (arg init)");
+				verify(list = PyList_New(std::size(sample_raw)));
 				for (int i = 0; i < std::size(sample_raw); ++i)
 				{	auto obj = PyLong_FromLong(sample_raw[i]);
 					assert(obj);
@@ -109,13 +111,15 @@ void python_test()
 				}
 			FINISH;
 
-			START(" 7 Call bubble_sort (call)");
+			START(" 6.2 Call bubble_sort (call)");
 				// Вызываем функцию и получаем результат
 				auto func = PyDict_GetItemString(dict, "bubble_sort");
 				assert(func && PyCallable_Check(func));
 				// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
 				auto args = PyTuple_Pack(1, list);
+				assert(args);
 				auto result = PyObject_CallObject(func, args);
+				assert(result);
 				Py_DECREF(result);
 				Py_DECREF(args);
 			FINISH;
@@ -134,31 +138,28 @@ void python_test()
 			PyObject* result = nullptr;
 			PyObject* args = nullptr;
 
-			START(" 8 Call bubble_sort_ex (arg init)");
-				args = PyTuple_New(2);
-				assert(args);
-				{
-					auto tuple = PyTuple_New(std::size(sample_raw));
+			START(" 7.1 Call bubble_sort_ex (arg init)");
+				verify(args = PyTuple_New(2));
+				{	auto tuple = PyTuple_New(std::size(sample_raw));
+					assert(tuple);
 					for (int i = 0; i < std::size(sample_raw); ++i)
-					{
-						auto obj = PyLong_FromLong(sample_raw[i]);
+					{	auto obj = PyLong_FromLong(sample_raw[i]);
 						assert(obj);
 						verify(0 == PyTuple_SetItem(tuple, i, obj));
 					}
 					verify(0 == PyTuple_SetItem(args, 0, tuple));
 				}
-				{
-					Py_INCREF(Py_None);
+				{	Py_INCREF(Py_None);
 					verify(0 == PyTuple_SetItem(args, 1, Py_None));
 				}
 			FINISH;
 
-			START(" 9 Call bubble_sort_ex (call)");
+			START(" 7.2 Call bubble_sort_ex (call)");
 				// Вызываем функцию и получаем результат
 				auto func = PyDict_GetItemString(dict, "bubble_sort_ex");
 				assert(func && PyCallable_Check(func));
 				// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
-				result = PyObject_CallObject(func, args);
+				verify(result = PyObject_CallObject(func, args));
 			FINISH;
 
 			for (auto&& i : sample_sorted)
