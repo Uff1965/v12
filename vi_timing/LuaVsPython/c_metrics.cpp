@@ -67,7 +67,7 @@ namespace ccc
 void c_test()
 {	VI_TM_CLEAR(nullptr);
 
-	START(" *** C ***   ");
+	START("  *** ALL ***");
 		START(" 0 Load text");
 		FINISH;
 

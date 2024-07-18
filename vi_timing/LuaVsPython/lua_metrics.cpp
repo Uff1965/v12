@@ -48,7 +48,7 @@ namespace
 void lua_test()
 {	VI_TM_CLEAR(nullptr);
 
-	START("  *** LUA ***   ");
+	START("  *** ALL ***");
 
 		std::string text;
 		START(" 0 Load text");

@@ -301,7 +301,7 @@ namespace
 		return duration_t(time2 - time1) / (tick2 - tick1);
 	}
 
-	duration_t duration()
+	duration_t call_duration()
 	{
 		static constexpr auto CNT = 100U;
 
@@ -419,7 +419,7 @@ namespace
 	constexpr std::string_view Ascending { "(^)" };
 	constexpr std::string_view Descending{ "(v)" };
 
-	struct traits_t
+	struct meterages_t
 	{
 		struct itm_t
 		{
@@ -438,22 +438,28 @@ namespace
 			}
 		};
 
-		std::vector<itm_t> meterages_;
-
-		std::uint32_t flags_;
-		const duration_t tick_duration_ = seconds_per_tick();
-		const double overmeasure_ = overmeasure(); // ticks
-		const double resolution_ = resolution(); // ticks
+		static const duration_t tick_duration_;
+		static const duration_t call_duration_;
+		static const double overmeasure_; // ticks
+		static const double resolution_; // ticks
+		std::vector<itm_t> items_;
 		std::size_t max_amount_{};
 		std::size_t max_len_name_{ title_name_.length()};
 		std::size_t max_len_total_{ title_total_.length() };
 		std::size_t max_len_average_{ title_average_.length() };
 		std::size_t max_len_amount_{ title_amount_.length() };
-		
-		traits_t(std::uint32_t flags);
+		const std::uint32_t flags_;
+
+		explicit meterages_t(std::uint32_t flags);
 	};
 
-	traits_t::traits_t(std::uint32_t flags) : flags_{ flags }
+	const auto _ = (warming(false, 512ms), 0); // Warm-up the CPU before calculating traits.
+	const duration_t meterages_t::tick_duration_ = seconds_per_tick();
+	const duration_t meterages_t::call_duration_ = call_duration();
+	const double meterages_t::overmeasure_ = overmeasure();
+	const double meterages_t::resolution_ = resolution();
+
+	meterages_t::meterages_t(std::uint32_t flags) : flags_{ flags }
 	{	assert(Descending.length() == Ascending.length());
 		std::size_t* p;
 		switch (flags_ & static_cast<uint32_t>(vi_tmSortMask))
@@ -471,8 +477,8 @@ namespace
 		assert(amount >= calls_cnt);
 
 		if (calls_cnt)
-		{	auto& traits = *static_cast<traits_t*>(_traits);
-			auto& itm = traits.meterages_.emplace_back(name, total, amount, calls_cnt);
+		{	auto& traits = *static_cast<meterages_t*>(_traits);
+			auto& itm = traits.items_.emplace_back(name, total, amount, calls_cnt);
 
 			if
 			(	const auto total_over_ticks = traits.overmeasure_ * itm.on_calls_cnt_;
@@ -500,21 +506,21 @@ namespace
 		return 1; // Continue enumerate.
 	}
 
-	template<vi_tmReportFlags E> auto make_tuple(const traits_t::itm_t& v);
-	template<vi_tmReportFlags E> bool less(const traits_t::itm_t& l, const traits_t::itm_t& r)
+	template<vi_tmReportFlags E> auto make_tuple(const meterages_t::itm_t& v);
+	template<vi_tmReportFlags E> bool less(const meterages_t::itm_t& l, const meterages_t::itm_t& r)
 	{	return make_tuple<E>(r) < make_tuple<E>(l);
 	}
 
-	template<> auto make_tuple<vi_tmSortByName>(const traits_t::itm_t& v)
+	template<> auto make_tuple<vi_tmSortByName>(const meterages_t::itm_t& v)
 	{	return std::tuple{ v.on_name_ };
 	}
-	template<> auto make_tuple<vi_tmSortBySpeed>(const traits_t::itm_t& v)
+	template<> auto make_tuple<vi_tmSortBySpeed>(const meterages_t::itm_t& v)
 	{	return std::tuple{ v.average_, v.total_time_, v.on_amount_, v.on_name_ };
 	}
-	template<> auto make_tuple<vi_tmSortByTime>(const traits_t::itm_t& v)
+	template<> auto make_tuple<vi_tmSortByTime>(const meterages_t::itm_t& v)
 	{	return std::tuple{ v.total_time_, v.average_, v.on_amount_, v.on_name_ };
 	}
-	template<> auto make_tuple<vi_tmSortByAmount>(const traits_t::itm_t& v)
+	template<> auto make_tuple<vi_tmSortByAmount>(const meterages_t::itm_t& v)
 	{	return std::tuple{ v.on_amount_, v.average_, v.total_time_, v.on_name_ };
 	}
 
@@ -523,7 +529,7 @@ namespace
 
 		explicit meterage_comparator_t(uint32_t flags) noexcept : flags_{ flags } {}
 
-		bool operator ()(const traits_t::itm_t& l, const traits_t::itm_t& r) const
+		bool operator ()(const meterages_t::itm_t& l, const meterages_t::itm_t& r) const
 		{	auto pr = &less<vi_tmSortBySpeed>;
 			switch (flags_ & static_cast<uint32_t>(vi_tmSortMask))
 			{
@@ -550,7 +556,7 @@ namespace
 
 	struct meterage_format_t
 	{
-		const traits_t& traits_;
+		const meterages_t& traits_;
 		const vi_tmLogSTR_t fn_;
 		void* const data_;
 		std::size_t number_len_{ 0 };
@@ -564,11 +570,11 @@ namespace
 			std::string amount_;
 		};
 
-		meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* data);
+		meterage_format_t(meterages_t& traits, vi_tmLogSTR_t fn, void* data);
 		int print(const strings_t& strings, char fill_name = 0) const;
 		int header() const;
 		int footer() const;
-		int operator ()(int init, const traits_t::itm_t& i) const;
+		int operator ()(int init, const meterages_t::itm_t& i) const;
 	};
 
 } // namespace {
@@ -578,10 +584,10 @@ VI_TM_API void VI_TM_CALL vi_tmWarming(int all, unsigned int ms)
 	warming(0 != all, ch::milliseconds{ ms });
 }
 
-meterage_format_t::meterage_format_t(traits_t& traits, vi_tmLogSTR_t fn, void* data)
+meterage_format_t::meterage_format_t(meterages_t& traits, vi_tmLogSTR_t fn, void* data)
 	:traits_{ traits }, fn_{ fn }, data_{ data }
 {
-	if (auto size = traits_.meterages_.size(); size >= 1)
+	if (auto size = traits_.items_.size(); size >= 1)
 	{	number_len_ = 1U + static_cast<std::size_t>(std::floor(std::log10(size)));
 	}
 }
@@ -665,7 +671,7 @@ int meterage_format_t::footer() const
 {	return print(empty);
 }
 
-int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
+int meterage_format_t::operator ()(int init, const meterages_t::itm_t& i) const
 {
 	std::ostringstream str;
 	{	struct thousands_sep_facet_t final : std::numpunct<char>
@@ -680,7 +686,7 @@ int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
 	++n_;
 
 	constexpr auto rift = 3;
-	const char fill_name = (traits_.meterages_.size() <= rift || n_ % rift) ? ' ' : '.';
+	const char fill_name = (traits_.items_.size() <= rift || n_ % rift) ? ' ' : '.';
 
 	strings_t strings
 	{	std::to_string(n_),
@@ -695,31 +701,29 @@ int meterage_format_t::operator ()(int init, const traits_t::itm_t& i) const
 
 VI_TM_API int VI_TM_CALL vi_tmReport(std::uint32_t flags, vi_tmLogSTR_t fn, void* data)
 {
-	warming(false, 512ms); //-V601
+	meterages_t results{ flags };
+	vi_tmResults(collector_meterages, &results);
 
-	traits_t traits{ flags };
-	vi_tmResults(collector_meterages, &traits);
-
-	std::sort(traits.meterages_.begin(), traits.meterages_.end(), meterage_comparator_t{ flags });
+	std::sort(results.items_.begin(), results.items_.end(), meterage_comparator_t{ flags });
 
 	std::ostringstream str;
 	if (flags & static_cast<uint32_t>(vi_tmShowUnit))
-	{	str << "One tick corresponds: " << traits.tick_duration_ << ";\n";
+	{	str << "One tick corresponds: " << meterages_t::tick_duration_ << ";\n";
 	}
 	if (flags & static_cast<uint32_t>(vi_tmShowResolution))
-	{	str << "Resolution: " << traits.tick_duration_ * traits.resolution_ << ";\n";
+	{	str << "Resolution: " << meterages_t::tick_duration_ * results.resolution_ << ";\n";
 	}
 	if (flags & static_cast<uint32_t>(vi_tmShowOverhead))
-	{	str << "Overmeasure: " << traits.tick_duration_ * traits.overmeasure_ << ";\n";
+	{	str << "Overmeasure: " << meterages_t::tick_duration_ * results.overmeasure_ << ";\n";
 	}
 	if (flags & static_cast<uint32_t>(vi_tmShowDuration))
-	{	str << "Measurement duration: " << duration() << ";\n";
+	{	str << "Measurement duration: " << meterages_t::call_duration_ << ";\n";
 	}
 	int result = fn(str.str().c_str(), data);
 
-	meterage_format_t mf{ traits, fn, data };
+	meterage_format_t mf{ results, fn, data };
 	result += mf.header();
-	result += std::accumulate(traits.meterages_.begin(), traits.meterages_.end(), result, mf);
+	result += std::accumulate(results.items_.begin(), results.items_.end(), result, mf);
 	result += mf.footer();
 	return result;
 }

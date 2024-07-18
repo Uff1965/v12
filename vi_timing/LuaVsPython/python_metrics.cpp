@@ -45,7 +45,7 @@ namespace
 void python_test()
 {	VI_TM_CLEAR();
 
-	START("  *** PYTHON ***");
+	START("  *** ALL ***");
 
 		std::string text;
 		START(" 0 Load text");
