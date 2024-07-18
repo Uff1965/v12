@@ -143,10 +143,10 @@ extern "C" {
 // Definition of vi_tmGetTicks() function for different platforms. ^^^^^^^^^^^^
 
 	// Main functions vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-	VI_TM_API void VI_TM_CALL vi_tmInit(VI_STD(size_t) n);
+	VI_TM_API void VI_TM_CALL vi_tmInit(VI_STD(size_t) n VI_DEFARG(64));
 	VI_TM_API vi_tmAtomicTicks_t* VI_TM_CALL vi_tmItem(const char* name, VI_STD(size_t) amount VI_DEFARG(1));
 	VI_TM_API int VI_TM_CALL vi_tmResults(vi_tmLogRAW_t fn, void* data);
-	VI_TM_API void VI_TM_CALL vi_tmClear(const char* name VI_DEFARG((const char*)0));
+	VI_TM_API void VI_TM_CALL vi_tmClear(const char* name VI_DEFARG(nullptr));
 	// Main functions ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	// Supporting functions. vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

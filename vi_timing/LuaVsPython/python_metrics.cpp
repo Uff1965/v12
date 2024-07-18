@@ -83,13 +83,22 @@ void python_test()
 			assert(sz && 0 == strcmp(sz, sample));
 		FINISH;
 
-		START(" 4 Call empty");
+		START(" 4.1 Call empty");
 			auto func = PyDict_GetItemString(dict, "empty_func");
 			assert(func);
 			auto ret = PyObject_CallNoArgs(func);
 			assert(ret);
 			Py_DECREF(ret);
 		FINISH;
+
+		for (unsigned n = 0; n < CNT; ++n)
+		{	VI_TM(" 4.2 Call empty (many times)");
+			auto func = PyDict_GetItemString(dict, "empty_func");
+			assert(func);
+			auto ret = PyObject_CallNoArgs(func);
+			assert(ret);
+			Py_DECREF(ret);
+		}
 
 		{
 			PyObject* result = nullptr;
@@ -150,4 +159,5 @@ void python_test()
 
 	std::cout << "Python test1 result:\n";
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);
+	endl(std::cout);
 }

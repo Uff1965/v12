@@ -85,11 +85,18 @@ void c_test()
 			assert(sz && len == strlen(sample) && 0 == strcmp(sz, sample));
 		FINISH;
 
-		START(" 4 Call empty");
+		START(" 4.1 Call empty");
 			auto func = ccc::empty_func;
 			assert(func);
 			func();
 		FINISH;
+
+		for (unsigned n = 0; n < CNT; ++n)
+		{	VI_TM(" 4.2 Call empty (many times)");
+			auto func = ccc::empty_func;
+			assert(func);
+			func();
+		}
 
 		{
 			std::vector<int> args;
@@ -128,4 +135,5 @@ void c_test()
 		vi_tmShowUnit |
 		vi_tmShowResolution;
 	VI_TM_REPORT(flags);
+	endl(std::cout);
 }

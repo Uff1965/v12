@@ -91,11 +91,18 @@ void lua_test()
 			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
 
-		START(" 4 Call empty");
+		START(" 4.1 Call empty");
 			verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
 			verify(LUA_OK == lua_pcall(L, 0, 0, 0));
 			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
+
+		for (unsigned n = 0; n < CNT; ++n)
+		{	VI_TM(" 4.2 Call empty (many times)");
+			verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
+			verify(LUA_OK == lua_pcall(L, 0, 0, 0));
+			assert(0 == lua_gettop(L)); // Стек пуст
+		}
 
 		{
 			START(" 5.1 Call bubble_sort (arg init)");
@@ -144,4 +151,5 @@ void lua_test()
 
 	std::cout << "Lua test result:\n";
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);
+	endl(std::cout);
 }
