@@ -97,6 +97,18 @@ void lua_test()
 			assert(0 == lua_gettop(L)); // Стек пуст
 		FINISH;
 
+		START(" 4.11 Call empty");
+			verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
+			verify(LUA_OK == lua_pcall(L, 0, 0, 0));
+			assert(0 == lua_gettop(L)); // Стек пуст
+		FINISH;
+
+		START(" 4.12 Call empty");
+			verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
+			verify(LUA_OK == lua_pcall(L, 0, 0, 0));
+			assert(0 == lua_gettop(L)); // Стек пуст
+		FINISH;
+
 		for (unsigned n = 0; n < CNT; ++n)
 		{	VI_TM(" 4.2 Call empty (many times)");
 			verify(LUA_TFUNCTION == lua_getglobal(L, "empty_func"));
@@ -107,10 +119,10 @@ void lua_test()
 		{
 			START(" 5.1 Call bubble_sort (arg init)");
 				// Создаем и заполняем таблицу с числами для сортировки
-				lua_createtable(L, static_cast<unsigned>(std::size(sample_sorted)), 0);
-				for (int i = 1; i <= std::size(sample_sorted); ++i) {
-					lua_pushnumber(L, i); // Ключ
-					lua_pushnumber(L, sample_raw[i - 1]); // Значение (5, 4, 3, 2, 1)
+				lua_createtable(L, static_cast<unsigned>(std::size(sample_raw)), 0);
+				for (int i = 1; i <= std::size(sample_raw); ++i)
+				{	lua_pushnumber(L, i); // Ключ
+					lua_pushnumber(L, sample_raw[i - 1]); // Значение
 					lua_settable(L, -3);
 				}
 				assert(1 == lua_gettop(L)); // На стеке таблица

@@ -3,13 +3,11 @@ global_string = "global string"
 def empty_func():
     pass
 
-def less(l, r):
-    return l < r
-
-def bubble_sort(aa, cmp = less):
+def bubble_sort(t, cmp = None):
     if not cmp:
-        cmp = less
-    a = list(aa)
+#       cmp = lambda l, r: l < r
+        cmp = c_ascending
+    a = list(t)
     swapped = True
     while swapped:
         swapped = False

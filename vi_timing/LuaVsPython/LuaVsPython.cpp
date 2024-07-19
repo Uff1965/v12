@@ -200,11 +200,13 @@ VI_OPTIMIZE_ON
 
 int raw[sample_size];
 int sorted[sample_size];
+int descending[sample_size];
 
 } // namespace
 
 const int(&sample_raw)[sample_size] = raw;
 const int(&sample_sorted)[sample_size] = sorted;
+const int(&sample_descending)[sample_size] = descending;
 
 int main()
 {
@@ -213,6 +215,7 @@ int main()
 	vi_tm::warming();
 
 	{	assert(std::size(sample_raw) == std::size(sample_sorted));
+		assert(std::size(sample_raw) == std::size(sample_descending));
 
 		std::mt19937 gen{/*std::random_device{}()*/ }; // For ease of debugging, the sequence is constant.
 		std::uniform_int_distribution distrib{ 1, 100'000 };
@@ -223,6 +226,9 @@ int main()
 
 		std::copy(std::begin(sample_raw), std::end(sample_raw), std::begin(sorted));
 		std::ranges::sort(sorted);
+
+		std::copy(std::begin(sample_raw), std::end(sample_raw), std::begin(descending));
+		std::ranges::sort(descending, std::greater{});
 	}
 
 	//tm_for();
