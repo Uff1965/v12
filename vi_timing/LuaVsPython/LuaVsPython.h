@@ -25,7 +25,7 @@ public:
 	static bool registrar(std::unique_ptr<test_t> p);
 };
 
-class test_interface_t: public test_t
+struct test_interface_t: test_t
 {
 	void test() const override;
 

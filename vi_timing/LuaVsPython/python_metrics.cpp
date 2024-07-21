@@ -16,8 +16,10 @@
 #include <cassert>
 #include <thread>
 
-//	inline bool verify(bool b) { assert(b); return b; } //-V:verify:530 //-V3549
+// verify реализован следующим образом, чтобы не засорять код проверками на nullptr:
+// inline bool verify(bool b) { assert(b); return b; }
 
+// Макросы для замера времени выполнения:
 #define START(s) \
 	std::this_thread::yield(); \
 	for (auto n = 5; n--;) { VI_TM(s); } \
@@ -29,6 +31,7 @@
 
 namespace
 {
+	// Текст скрипта на Python используемый в тесте:
 	constexpr char sample_py[] = R"(
 global_string = "global string"
 
@@ -51,15 +54,18 @@ def bubble_sort(t, cmp = None):
 				swapped = True
 	return a
 )";
+	// Эталон строки для проверки получения глобальной переменной из скрипта:
 	constexpr char sample[] = "global string";
 }
 
+// c_ascending - C-функция которая будет зарегистрирована в Python под именем "c_ascending" и будет использована внутри скрипта
 extern "C" PyObject* c_ascending(PyObject*, PyObject* args)
 {	int l, r;
 	const auto ret = PyArg_ParseTuple(args, "ii", &l, &r); // Парсим аргументы
 	return verify(0 != ret) ? PyBool_FromLong(l < r) : nullptr;
 }
 
+// c_descending - C-функция которая будет передана из C-кода в Python-скрипт в качестве аргумента функции bubble_sort
 extern "C" PyObject* c_descending(PyObject*, PyObject* args)
 {	int l, r;
 	const auto ret = PyArg_ParseTuple(args, "ii", &l, &r);
@@ -70,14 +76,17 @@ struct test_python_t final: test_interface_t
 {
 	std::string title() const override { return "PYTHON"; };
 
+	// Эти функции будут вызваны в тесте в порядке объявления:
 	void InitializeEngine(const char* tm) const override;
 	void* CompileScript(const char* tm) const override;
 	std::string ExportCode(const char* tm, void* py_obj) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void* py_obj) const override;
+	void Work() const override { test_interface_t::Work(); }
 	void CloseScript(const char* tm) const override;
 	void FinalizeEngine(const char* tm) const override;
 
+	// Эти функции будут вызваны из Work() в порядке объявления (некотороые по несколько раз):
 	void WorkGetString(const char* tm) const override;
 	void WorkCallEmpty(const char* tm) const override;
 	void WorkCallSimple(const char* tm) const override;
