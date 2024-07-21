@@ -70,17 +70,14 @@ struct test_python_t final: test_interface_t
 {
 	std::string title() const override { return "PYTHON"; };
 
-	// Ёти функции будут вызваны в тесте в пор€дке объ€влени€:
 	void InitializeEngine(const char* tm) const override;
 	void* CompileScript(const char* tm) const override;
 	std::string ExportCode(const char* tm, void* py_obj) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void* py_obj) const override;
-	void Work() const override { test_interface_t::Work(); }
 	void CloseScript(const char* tm) const override;
 	void FinalizeEngine(const char* tm) const override;
 
-	// Ёти функции будут вызваны из Work() в пор€дке объ€влени€ (некотороые по несколько раз):
 	void WorkGetString(const char* tm) const override;
 	void WorkCallEmpty(const char* tm) const override;
 	void WorkCallSimple(const char* tm) const override;
