@@ -3,9 +3,6 @@
 
 #include "header.h"
 
-#include "c_metrics.h"
-#include "lua_metrics.h"
-#include "python_metrics.h"
 #include "LuaVsPython.h"
 
 #include <Windows.h>
@@ -13,19 +10,16 @@
 #include <vi_timing/timing.h>
 
 #include <algorithm>
-#include <chrono>
 #include <iostream>
-#include <memory>
 #include <random>
 #include <thread>
-#include <vector>
+
+using namespace std::literals;
 
 namespace
 {
-	namespace ch = std::chrono;
-	using namespace std::literals;
-
-	const auto _1 = (
+	const auto _ =
+	(
 #if defined(_MSC_VER) && defined(_DEBUG)
 		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF), // To automatically call the _CrtDumpMemoryLeaks function when the program ends
 		verify(-1 != _set_error_mode(_OUT_TO_MSGBOX)), // Error sink is a message box. To be able to ignore errors in debugging sessions.
@@ -42,165 +36,28 @@ namespace
 			}
 		}(),
 #endif
-	nullptr
+		nullptr
 	);
 
 	//VI_TM_INIT(vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowResolution);
 	//VI_TM("Well, that's all!");
-	const auto initializing_global_variables_can_also_take_time = []{std::this_thread::sleep_for(10ms); return 0;}();
+	const auto initializing_global_variables_can_also_take_time = []{std::this_thread::sleep_for(1ms); return 0;}();
 
-	std::size_t l = 0;
-	const char sample[] = "global string";
+	int raw[sample_size];
+	int sorted[sample_size];
+	static_assert(std::size(raw) == std::size(sorted));
+	int descending[sample_size];
+	static_assert(std::size(raw) == std::size(descending));
+	const auto _sample_init = []
+	{	std::mt19937 gen{/*std::random_device{}()*/ }; // For ease of debugging, the sequence is constant.
+		std::uniform_int_distribution distrib{ 1, 1'000 };
 
-VI_OPTIMIZE_OFF
-	void empty_func()
-	{
-	}
-
-	std::size_t strlen_func(const char *s)
-	{	return std::strlen(s);
-	}
-VI_OPTIMIZE_ON
-
-	void tm_test()
-	{
-		constexpr auto CNT = 1'000;
-
-		{
-			constexpr char key_s[] =	"Call empty (CPP)";
-			constexpr char key_sum[] =	"Call empty (CPP) SUM";
-			constexpr char key[] =		"Call empty (CPP) *";
-
-			std::this_thread::yield();
-			empty_func();
-
-			{
-				vi_tm::clear(key_s);
-				VI_TM(key_s);
-				empty_func();
-			}
-
-			{
-				vi_tm::clear(key);
-				VI_TM(key_sum, CNT);
-				for (int n = 0; n < CNT; ++n)
-				{
-					VI_TM(key);
-					empty_func();
-				}
-			}
-		}
-
-		{
-			constexpr char key_s[] =	"Call strlen (CPP)";
-			constexpr char key_sum[] =	"Call strlen (CPP) SUM";
-			constexpr char key[] =		"Call strlen (CPP) *";
-
-			std::this_thread::yield();
-			l = strlen_func(sample);
-
-			{
-				vi_tm::clear(key_s);
-				VI_TM(key_s);
-				l = strlen_func(sample);
-			}
-
-			{
-				vi_tm::clear(key);
-				VI_TM(key_sum, CNT);
-				for (int n = 0; n < CNT; ++n)
-				{
-					VI_TM(key);
-					l = strlen_func(sample);
-				}
-			}
-		}
-
-		{
-			constexpr char key_s[] =	"Empty (CPP)";
-			constexpr char key_sum[] =	"Empty (CPP) SUM";
-			constexpr char key[] =		"Empty (CPP) *";
-
-			std::this_thread::yield();
-
-			{
-				vi_tm::clear(key_s);
-				VI_TM(key_s);
-			}
-
-			{
-				vi_tm::clear(key);
-				VI_TM(key_sum, CNT);
-				for (int n = 0; n < CNT; ++n)
-				{
-					VI_TM(key);
-				}
-			}
-		}
-	}
-
-VI_OPTIMIZE_OFF
-	void tm_for()
-	{
-		constexpr auto CNT = 100;
-		constexpr char key[] = "For";
-
-		std::size_t diff = 0;
-		std::size_t diff0 = 0;
-		std::size_t diff1 = 0;
-		std::size_t diff2 = 0;
-
-		std::this_thread::yield();
-		{
-			VI_TM(key);
-			vi_tm::clear(key);
-		}
-
-		{
-			VI_TM("XXXX");
-
-			auto s = vi_tmGetTicks();
-			auto e = vi_tmGetTicks();
-			diff = e - s;
-
-			s = vi_tmGetTicks();
-			{
-				VI_TM(key);
-			}
-			e = vi_tmGetTicks();
-			diff0 = e - s - diff;
-
-			s = vi_tmGetTicks();
-			for (int n = 0; n < CNT; ++n)
-			{
-				{ VI_TM(key); }
-			}
-			e = vi_tmGetTicks();
-			diff1 = e - s - diff;
-
-			s = vi_tmGetTicks();
-			for (int n = 0; n < CNT; ++n)
-			{
-				{ VI_TM(key); }
-				{ VI_TM(key); }
-			}
-			e = vi_tmGetTicks();
-			diff2 = e - s - diff;
-		}
-
-		std::cout << "diff: " << diff << std::endl;
-		std::cout << "diff0: " << diff0 << std::endl;
-		std::cout << "diff1: " << diff1 << std::endl;
-		std::cout << "diff2: " << diff2 << std::endl;
-		std::cout << "Overmeasure: " << static_cast<double>(2 * diff1 - diff2) / CNT << std::endl;
-		std::cout << "Load: " << static_cast<double>(diff2 - diff1) / CNT << std::endl;
-		endl(std::cout);
-	}
-VI_OPTIMIZE_ON
-
-int raw[sample_size];
-int sorted[sample_size];
-int descending[sample_size];
+		std::ranges::generate(raw, [&] { return distrib(gen); });
+		std::ranges::copy(raw, sorted);
+		std::ranges::sort(sorted);
+		std::ranges::reverse_copy(sorted, descending);
+		return nullptr;
+	}();
 
 } // namespace
 
@@ -208,34 +65,64 @@ const int(&sample_raw)[sample_size] = raw;
 const int(&sample_sorted)[sample_size] = sorted;
 const int(&sample_descending)[sample_size] = descending;
 
+std::vector<std::unique_ptr<const test_t>> test_t::items_;
+bool test_t::registrar(std::unique_ptr<test_t> p)
+{	items_.emplace_back(std::move(p));
+	return true;
+}
+
+void test_interface_t::test() const
+{
+	InitializeEngine("1. Initialize");
+	auto p_code = CompileScript("3. Compile");
+	{
+		std::string buff = ExportCode("4. Export P-code", p_code);
+		p_code = nullptr;
+		p_code = ImportCode("5. Import P-code", buff);
+	}
+	ExecutionScript("6. Execution", p_code);
+
+	Work();
+
+	CloseScript("8. Close");
+	FinalizeEngine("9. Finalize");
+}
+
+void test_interface_t::Work() const
+{	WorkGetString("7.1 Get string");
+
+	WorkCallEmpty("7.2.1 Call empty");
+	WorkCallEmpty("7.2.2 Call empty");
+	WorkCallEmpty("7.2.3 Call empty");
+
+	WorkCallSimple("7.3.1 Call simple");
+	WorkCallSimple("7.3.2 Call simple");
+	WorkCallSimple("7.3.3 Call simple");
+
+	void *args = WorkBubbleSortArgs("7.4.1 bubble_sort (arg init)", false);
+	WorkBubbleSortRun("7.4.2 bubble_sort", args, false);
+
+	args = WorkBubbleSortArgs("7.5.1 bubble_sort (arg init)", true);
+	WorkBubbleSortRun("7.5.2 bubble_sort", args, true);
+}
+
 int main()
 {
 //	VI_TM_FUNC;
 
 	vi_tm::warming();
 
-	{	assert(std::size(sample_raw) == std::size(sample_sorted));
-		assert(std::size(sample_raw) == std::size(sample_descending));
-
-		std::mt19937 gen{/*std::random_device{}()*/ }; // For ease of debugging, the sequence is constant.
-		std::uniform_int_distribution distrib{ 1, 100'000 };
-
-		for (auto &&i: raw)
-		{	i = distrib(gen);
-		}
-
-		std::copy(std::begin(sample_raw), std::end(sample_raw), std::begin(sorted));
-		std::ranges::sort(sorted);
-
-		std::copy(std::begin(sample_raw), std::end(sample_raw), std::begin(descending));
-		std::ranges::sort(descending, std::greater{});
+	for (const auto &t : test_t::items_)
+	{	t->test(); // Подгружаем весь код из библиотек.
 	}
 
-	//tm_for();
-	//tm_test();
-	c_test();
-	lua_test();
-	python_test();
+	for (const auto &t : test_t::items_)
+	{	std::cout << "Timing " << t->title() << "\n";
+		VI_TM_CLEAR();
+		t->test();
+		VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);
+		endl(std::cout);
+	}
 
-    std::cout << "Hello World!\n";
+	std::cout << "Hello World!\n";
 }

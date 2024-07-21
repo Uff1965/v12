@@ -1,4 +1,5 @@
 #include <vi_timing/timing.h>
+#include "LuaVsPython.h"
 
 #include <cassert>
 #include <fstream>
@@ -141,3 +142,10 @@ void python_test()
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);
 	endl(std::cout);
 }
+
+struct impl_test_t: test_t
+{
+	void test() const override { python_test(); }
+	const std::string& name() const override { return "PYTHON slim"; }
+	inline static auto _ = (registrar(std::make_unique<impl_test_t>()), 0);
+};

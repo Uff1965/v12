@@ -165,3 +165,10 @@ void lua_test()
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);
 	endl(std::cout);
 }
+
+struct impl_test_t: test_t
+{
+	void test() const override { lua_test(); }
+	const std::string& name() const override { return "LUA"; }
+	inline static auto _ = (registrar(std::make_unique<impl_test_t>()), 0);
+};

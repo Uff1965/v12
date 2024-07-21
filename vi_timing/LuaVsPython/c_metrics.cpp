@@ -137,3 +137,10 @@ void c_test()
 	VI_TM_REPORT(flags);
 	endl(std::cout);
 }
+
+struct impl_test_t: test_t
+{
+	void test() const override { c_test(); }
+	std::string name() const override { return "C"; }
+	inline static auto _ = (registrar(std::make_unique<impl_test_t>()), 0);
+};

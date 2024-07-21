@@ -1,4 +1,8 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
+
 #include <vi_timing/timing.h>
+#include "LuaVsPython.h"
 
 #include <cassert>
 #include <fstream>
@@ -9,14 +13,6 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-
-#ifdef NDEBUG
-constexpr auto sample_size = 10'000U;
-#else
-constexpr auto sample_size = 1'000U;
-#endif
-extern const int(&sample_raw)[sample_size];
-extern const int(&sample_sorted)[sample_size];
 
 extern "C" int l_cmp(lua_State* L)
 {	const double l = lua_tonumber(L, 1);
@@ -132,3 +128,10 @@ void lua_test()
 	VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);
 	endl(std::cout);
 }
+
+struct impl_test_t: test_t
+{
+	void test() const override { lua_test(); }
+	std::string name() const override { return "LUA slim"; }
+	inline static auto _ = (registrar(std::make_unique<impl_test_t>()), 0);
+};
