@@ -44,66 +44,34 @@ namespace
 	const auto initializing_global_variables_can_also_take_time = []{std::this_thread::sleep_for(1ms); return 0;}();
 
 	int raw[sample_size];
-	int sorted[sample_size];
-	static_assert(std::size(raw) == std::size(sorted));
+	int ascending[sample_size];
+	static_assert(std::size(raw) == std::size(ascending));
 	int descending[sample_size];
 	static_assert(std::size(raw) == std::size(descending));
 	const auto _sample_init = []
-	{	std::mt19937 gen{/*std::random_device{}()*/ }; // For ease of debugging, the sequence is constant.
+	{	std::mt19937 gen{/*std::random_device{}()*/ }; // For ease of debugging, the sequence is stable.
 		std::uniform_int_distribution distrib{ 1, 1'000 };
 
 		std::ranges::generate(raw, [&] { return distrib(gen); });
-		std::ranges::copy(raw, sorted);
-		std::ranges::sort(sorted);
-		std::ranges::reverse_copy(sorted, descending);
+		std::ranges::copy(raw, ascending);
+		std::ranges::sort(ascending);
+		std::ranges::reverse_copy(ascending, descending);
 		return nullptr;
 	}();
 
 } // namespace
 
 const int(&sample_raw)[sample_size] = raw;
-const int(&sample_sorted)[sample_size] = sorted;
-const int(&sample_descending)[sample_size] = descending;
+const int(&sample_ascending_sorted)[sample_size] = ascending;
+const int(&sample_descending_sorted)[sample_size] = descending;
 
-std::vector<std::unique_ptr<const test_t>> Items;
+auto& Items()
+{	static std::vector<std::unique_ptr<const test_t>> items;
+	return items;
+}
 bool test_t::registrar(std::unique_ptr<test_t> p)
-{	Items.emplace_back(std::move(p));
+{	Items().emplace_back(std::move(p));
 	return true;
-}
-
-void test_interface_t::test() const
-{
-	InitializeEngine("1. Initialize");
-	auto p_code = CompileScript("3. Compile");
-	{
-		std::string buff = ExportCode("4. Export P-code", p_code);
-		p_code = nullptr;
-		p_code = ImportCode("5. Import P-code", buff);
-	}
-	ExecutionScript("6. Execution", p_code);
-
-	Work();
-
-	CloseScript("8. Close");
-	FinalizeEngine("9. Finalize");
-}
-
-void test_interface_t::Work() const
-{	WorkGetString("7.1 Get string");
-
-	WorkCallEmpty("7.2.1 Call empty");
-	WorkCallEmpty("7.2.2 Call empty");
-	WorkCallEmpty("7.2.3 Call empty");
-
-	WorkCallSimple("7.3.1 Call simple");
-	WorkCallSimple("7.3.2 Call simple");
-	WorkCallSimple("7.3.3 Call simple");
-
-	void *args = WorkBubbleSortArgs("7.4.1 bubble_sort (arg init)", false);
-	WorkBubbleSortRun("7.4.2 bubble_sort", args, false);
-
-	args = WorkBubbleSortArgs("7.5.1 bubble_sort (arg init)", true);
-	WorkBubbleSortRun("7.5.2 bubble_sort", args, true);
 }
 
 int main()
@@ -112,11 +80,11 @@ int main()
 
 	vi_tm::warming();
 
-	for (const auto &t : Items)
+	for (const auto &t : Items())
 	{	t->test(); // Подгружаем весь код из библиотек.
 	}
 
-	for (const auto &t : Items)
+	for (const auto &t : Items())
 	{	std::cout << "Timing " << t->title() << "\n";
 		VI_TM_CLEAR();
 		t->test();

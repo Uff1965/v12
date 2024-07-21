@@ -113,9 +113,9 @@ void c_test()
 				args = func(args, [](int l, int r) {return l < r; });
 			FINISH;
 
-			for (unsigned i = 0; i < std::size(sample_sorted); ++i)
+			for (unsigned i = 0; i < std::size(sample_ascending_sorted); ++i)
 			{	[[maybe_unused]] const auto v = args[i];
-				assert(v == sample_sorted[i]);
+				assert(v == sample_ascending_sorted[i]);
 			}
 		}
 

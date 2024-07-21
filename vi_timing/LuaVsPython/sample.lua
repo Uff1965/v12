@@ -3,6 +3,10 @@ global_string = "global string"
 function empty_func()
 end
 
+function simple_func(a)
+	return a
+end
+
 function bubble_sort(aa, cmp)
     cmp = cmp or function(l, r) return l < r end
 

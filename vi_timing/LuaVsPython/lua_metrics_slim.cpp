@@ -110,7 +110,7 @@ void lua_test()
 			{	const auto idx = lua_tointeger(L, -2);
 				const auto val = lua_tointeger(L, -1);
 				lua_pop(L, 1);
-				assert(sample_sorted[idx - 1] == val);
+				assert(sample_ascending_sorted[idx - 1] == val);
 			}
 			lua_pop(L, 1); // Удаляем таблицу
 		}

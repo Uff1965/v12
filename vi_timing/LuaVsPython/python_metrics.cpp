@@ -6,28 +6,17 @@
 // https://docs.python.org/3/c-api/index.html
 
 #include "header.h"
-
 #include "LuaVsPython.h"
+
 #include <vi_timing/timing.h>
 
 #include <Python.h>
 #include <marshal.h> // For PyMarshal_WriteObjectToString, PyMarshal_ReadObjectFromString
 
 #include <cassert>
-#include <thread>
 
 // verify реализован следующим образом, чтобы не засорять код проверками на nullptr:
 // inline bool verify(bool b) { assert(b); return b; }
-
-// Макросы для замера времени выполнения:
-#define START(s) \
-	std::this_thread::yield(); \
-	for (auto n = 5; n--;) { VI_TM(s); } \
-	VI_TM_CLEAR(s); \
-	do { VI_TM(s)
-
-#define FINISH \
-	} while(0)
 
 namespace
 {
@@ -58,18 +47,23 @@ def bubble_sort(t, cmp = None):
 	constexpr char sample[] = "global string";
 }
 
-// c_ascending - C-функция которая будет зарегистрирована в Python под именем "c_ascending" и будет использована внутри скрипта
-extern "C" PyObject* c_ascending(PyObject*, PyObject* args)
-{	int l, r;
-	const auto ret = PyArg_ParseTuple(args, "ii", &l, &r); // Парсим аргументы
-	return verify(0 != ret) ? PyBool_FromLong(l < r) : nullptr;
-}
+extern "C"
+{
+	// c_ascending - C-функция которая будет зарегистрирована в Python под именем "c_ascending" и будет использована внутри скрипта
+	static PyObject *c_ascending(PyObject *, PyObject *args)
+	{
+		int l, r;
+		const auto ret = PyArg_ParseTuple(args, "ii", &l, &r); // Парсим аргументы
+		return verify(0 != ret) ? PyBool_FromLong(l < r) : nullptr;
+	}
 
-// c_descending - C-функция которая будет передана из C-кода в Python-скрипт в качестве аргумента функции bubble_sort
-extern "C" PyObject* c_descending(PyObject*, PyObject* args)
-{	int l, r;
-	const auto ret = PyArg_ParseTuple(args, "ii", &l, &r);
-	return  verify(0 != ret) ? PyBool_FromLong(r < l) : nullptr;
+	// c_descending - C-функция которая будет передана из C-кода в Python-скрипт в качестве аргумента функции bubble_sort
+	extern "C" static PyObject *c_descending(PyObject *, PyObject *args)
+	{
+		int l, r;
+		const auto ret = PyArg_ParseTuple(args, "ii", &l, &r);
+		return  verify(0 != ret) ? PyBool_FromLong(r < l) : nullptr;
+	}
 }
 
 struct test_python_t final: test_interface_t
@@ -233,7 +227,7 @@ void test_python_t::WorkBubbleSortRun(const char* tm, void *args, bool descendin
 	FINISH;
 
 	// Проверяем результат
-	auto &smpl = descending? sample_descending: sample_sorted;
+	auto &smpl = descending? sample_descending_sorted: sample_ascending_sorted;
 	for (auto&& i : smpl)
 	{	auto obj = PyList_GetItem(result, &i - smpl);
 		assert(obj);

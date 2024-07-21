@@ -17,7 +17,7 @@ constexpr auto sample_size = 10'000U;
 constexpr auto sample_size = 1'000U;
 #endif
 extern const int(&sample_raw)[sample_size];
-extern const int(&sample_sorted)[sample_size];
+extern const int(&sample_ascending_sorted)[sample_size];
 
 extern "C" PyObject* p_cmp(PyObject*, PyObject* args)
 {	int l, r;
@@ -120,9 +120,9 @@ void python_test()
 				result = PyObject_CallObject(func, args); // Вызываем функцию с аргументами
 			}
 			// Проверяем, что результат сортировки соответствует ожидаемому
-			for (auto&& i : sample_sorted)
+			for (auto&& i : sample_ascending_sorted)
 			{	int val = 0;
-				auto obj = PyList_GetItem(result, &i - sample_sorted); // Получаем элемент из списка
+				auto obj = PyList_GetItem(result, &i - sample_ascending_sorted); // Получаем элемент из списка
 				PyArg_Parse(obj, "i", &val);
 				assert(i == val);
 			}
