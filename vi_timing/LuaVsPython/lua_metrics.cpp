@@ -113,13 +113,24 @@ void* test_lua_t::CompileScript(const char* tm) const
 }
 
 std::string test_lua_t::ExportCode(const char* tm, void*) const
-{	START(tm);
+{	std::string result;
+	START(tm);
+		auto writer = [](lua_State*, const void* p, std::size_t sz, void* ud)
+			{	auto& buf = *static_cast<std::string*>(ud);
+				buf.append(static_cast<const char*>(p), sz);
+				return 0;
+			};
+		verify(LUA_OK == lua_dump(L, writer, &result, 0));
+		lua_pop(L, 1);
+		assert(0 == lua_gettop(L)); // Стек пуст
 	FINISH;
-	return {};
+	return result;
 }
 
 void* test_lua_t::ImportCode(const char* tm, const std::string& p_code) const
 {	START(tm);
+		verify(LUA_OK == luaL_loadbuffer(L, p_code.data(), p_code.size(), "<script>"));
+		assert(1 == lua_gettop(L)); // На стеке скрипт
 	FINISH;
 	return nullptr;
 }

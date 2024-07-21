@@ -7,11 +7,9 @@
 #	include <thread>
 
 #	ifdef NDEBUG
-constexpr auto sample_size = 3'000U;
-constexpr auto CNT = 1'000U;
+constexpr auto sample_size = 5'000U;
 #	else
-constexpr auto sample_size = 300U;
-constexpr auto CNT = 1'000U;
+constexpr auto sample_size = 500U;
 #	endif
 
 extern const int(&sample_raw)[sample_size];
@@ -50,40 +48,40 @@ struct test_interface_t: test_t
 inline void test_interface_t::test() const
 {
 	InitializeEngine("1. Initialize");
-	auto p_code = CompileScript("3. Compile");
+	auto p_code = CompileScript("2. Compile");
 	{
-		std::string buff = ExportCode("4. Export P-code", p_code);
+		std::string buff = ExportCode("3. Export P-code", p_code);
 		p_code = nullptr;
-		p_code = ImportCode("5. Import P-code", buff);
+		p_code = ImportCode("4. Import P-code", buff);
 	}
-	ExecutionScript("6. Execution", p_code);
+	ExecutionScript("5. Execution", p_code);
 
 	Work();
 
-	CloseScript("8. Close");
-	FinalizeEngine("9. Finalize");
+	CloseScript("7. Close");
+	FinalizeEngine("8. Finalize");
 }
 
 inline void test_interface_t::Work() const
-{	WorkGetString("7.1 Get string");
+{	WorkGetString("6.1 Get string");
 
-	WorkCallEmpty("7.2.1 Call empty");
-	WorkCallEmpty("7.2.2 Call empty");
-	WorkCallEmpty("7.2.3 Call empty");
-	WorkCallEmpty("7.2.4 Call empty");
-	WorkCallEmpty("7.2.5 Call empty");
+	WorkCallEmpty("6.2.1 Call empty");
+	WorkCallEmpty("6.2.2 Call empty");
+	WorkCallEmpty("6.2.3 Call empty");
+	WorkCallEmpty("6.2.4 Call empty");
+	WorkCallEmpty("6.2.5 Call empty");
 
-	WorkCallSimple("7.3.1 Call simple");
-	WorkCallSimple("7.3.2 Call simple");
-	WorkCallSimple("7.3.3 Call simple");
-	WorkCallSimple("7.3.4 Call simple");
-	WorkCallSimple("7.3.5 Call simple");
+	WorkCallSimple("6.3.1 Call simple");
+	WorkCallSimple("6.3.2 Call simple");
+	WorkCallSimple("6.3.3 Call simple");
+	WorkCallSimple("6.3.4 Call simple");
+	WorkCallSimple("6.3.5 Call simple");
 
-	void *args = WorkBubbleSortArgs("7.4.1 bubble_sort (arg init)", false);
-	WorkBubbleSortRun("7.4.2 bubble_sort", args, false);
+	void *args = WorkBubbleSortArgs("6.4.1 bubble_sort (arg init)", false);
+	WorkBubbleSortRun("6.4.2 bubble_sort", args, false);
 
-	args = WorkBubbleSortArgs("7.5.1 bubble_sort (arg init)", true);
-	WorkBubbleSortRun("7.5.2 bubble_sort", args, true);
+	args = WorkBubbleSortArgs("6.5.1 bubble_sort (arg init)", true);
+	WorkBubbleSortRun("6.5.2 bubble_sort", args, true);
 }
 
 //#	define START(s) \
