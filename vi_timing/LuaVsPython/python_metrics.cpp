@@ -51,16 +51,16 @@ extern "C"
 {
 	// c_ascending - C-функция которая будет зарегистрирована в Python под именем "c_ascending" и будет использована внутри скрипта
 	static PyObject *c_ascending(PyObject *, PyObject *args)
-	{
-		int l, r;
+	{	int l, r;
+		assert(PyTuple_Check(args) && 2 == PyTuple_Size(args));
 		const auto ret = PyArg_ParseTuple(args, "ii", &l, &r); // Парсим аргументы
 		return verify(0 != ret) ? PyBool_FromLong(l < r) : nullptr;
 	}
 
 	// c_descending - C-функция которая будет передана из C-кода в Python-скрипт в качестве аргумента функции bubble_sort
-	extern "C" static PyObject *c_descending(PyObject *, PyObject *args)
-	{
-		int l, r;
+	static PyObject *c_descending(PyObject *, PyObject *args)
+	{	int l, r;
+		assert(PyTuple_Check(args) && 2 == PyTuple_Size(args));
 		const auto ret = PyArg_ParseTuple(args, "ii", &l, &r);
 		return  verify(0 != ret) ? PyBool_FromLong(r < l) : nullptr;
 	}

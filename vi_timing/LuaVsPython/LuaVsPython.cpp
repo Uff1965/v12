@@ -84,12 +84,15 @@ int main()
 	{	t->test(); // Подгружаем весь код из библиотек.
 	}
 
+	unsigned long flags = vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowResolution;
 	for (const auto &t : Items())
-	{	std::cout << "Timing " << t->title() << "\n";
+	{	std::cout << "Timing: \'" << t->title() << "\'\n";
 		VI_TM_CLEAR();
 		t->test();
-		VI_TM_REPORT(vi_tmSortByName | vi_tmSortAscending);
+		VI_TM_REPORT(flags);
 		endl(std::cout);
+
+		flags = vi_tmSortByName | vi_tmSortAscending;
 	}
 
 	std::cout << "Hello World!\n";

@@ -2,28 +2,12 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 
 #include "header.h"
-#include "c_metrics.h"
 #include "LuaVsPython.h"
 
 #include <vi_timing/timing.h>
 
 #include <cassert>
-#include <iostream>
-#include <thread>
 #include <vector>
-
-#define START(s) \
-	std::this_thread::yield(); \
-	for (auto n = 5; n--;) \
-	{	VI_TM(s); \
-	} \
-	VI_TM_CLEAR(s); \
-	do { VI_TM(s)
-
-#define FINISH \
-	} while(0)
-
-using namespace std::string_literals;
 
 namespace
 {
@@ -32,18 +16,31 @@ namespace
 
 namespace ccc
 {
+	// c_ascending - C-функция которая будет зарегистрирована в Python под именем "c_ascending" и будет использована внутри скрипта
+	static bool c_ascending(int l, int r)
+	{	return l < r;
+	}
+
+	// c_descending - C-функция которая будет передана из C-кода в Python-скрипт в качестве аргумента функции bubble_sort
+	static bool c_descending(int l, int r)
+	{	return l > r;
+	}
+
 	const char global_string[] = "global string";
 
-	// Define an empty function
 	void empty_func()
 	{	// This function does nothing
 	}
 
-	std::vector<int> bubble_sort(const std::vector<int>& a, bool (*cmp)(int, int) = nullptr)
+	int simple_func(int n)
+	{	return n;
+	}
+
+	std::vector<int> bubble_sort(const std::vector<int>& a, bool (*cmp)(int, int))
 	{
 		std::vector<int> result{ a };
 		if (!cmp)
-		{	cmp = [](int l, int r) { return l < r; };
+		{	cmp = c_ascending;
 		}
 
 		bool swapped;
@@ -53,8 +50,7 @@ namespace ccc
 			for (unsigned i = 1; i < a.size(); ++i)
 			{
 				if (cmp(result[i], result[i - 1]))
-				{
-					result[i - 1] = std::exchange(result[i], result[i - 1]);
+				{	result[i - 1] = std::exchange(result[i], result[i - 1]);
 					swapped = true;
 				}
 			}
@@ -62,85 +58,105 @@ namespace ccc
 
 		return result;
 	}
-} // namespace ccc
-
-void c_test()
-{	VI_TM_CLEAR(nullptr);
-
-	START("  *** ALL ***");
-		START(" 0 Load text");
-		FINISH;
-
-		START(" 1 Initialize");
-		FINISH;
-
-		START(" 2.1 dofile (load+compile)");
-		FINISH;
-		START(" 2.2 dofile (call)");
-		FINISH;
-
-		START(" 3 Get string");
-			const char *sz = ccc::global_string;
-			std::size_t len = sz? strlen(sz): 0ULL;
-			assert(sz && len == strlen(sample) && 0 == strcmp(sz, sample));
-		FINISH;
-
-		START(" 4.1 Call empty");
-			auto func = ccc::empty_func;
-			assert(func);
-			func();
-		FINISH;
-
-		for (unsigned n = 0; n < CNT; ++n)
-		{	VI_TM(" 4.2 Call empty (many times)");
-			auto func = ccc::empty_func;
-			assert(func);
-			func();
-		}
-
-		{
-			std::vector<int> args;
-
-			START(" 5.1 Call bubble_sort (arg init)");
-				// Создаем аргументы для вызова функции
-				args.assign(std::begin(sample_raw), std::end(sample_raw));
-			FINISH;
-
-			START(" 5.2 Call bubble_sort (call)");
-				auto func = ccc::bubble_sort;
-				assert(func);
-				// Вызываем функцию и получаем результат
-				args = func(args, [](int l, int r) {return l < r; });
-			FINISH;
-
-			for (unsigned i = 0; i < std::size(sample_ascending_sorted); ++i)
-			{	[[maybe_unused]] const auto v = args[i];
-				assert(v == sample_ascending_sorted[i]);
-			}
-		}
-
-		START("98 close");
-		FINISH;
-
-		START("99 Finalize");
-		FINISH;
-	FINISH;
-
-	std::cout << "C test result:\n";
-	static constexpr auto flags =
-		vi_tmSortByName |
-		vi_tmSortAscending |
-		vi_tmShowOverhead |
-		vi_tmShowDuration |
-		vi_tmShowUnit |
-		vi_tmShowResolution;
-	VI_TM_REPORT(flags);
-	endl(std::cout);
 }
 
-struct impl_test_t: test_t
+struct test_c_t final: test_interface_t
 {
-	void test() const override { c_test(); }
-	std::string name() const override { return "C"; }
-	inline static auto _ = (registrar(std::make_unique<impl_test_t>()), 0);
+	std::string title() const override { return "C"; };
+
+	void InitializeEngine(const char* tm) const override;
+	void* CompileScript(const char* tm) const override;
+	std::string ExportCode(const char* tm, void*) const override;
+	void* ImportCode(const char* tm, const std::string& p_code) const override;
+	void ExecutionScript(const char* tm, void*) const override;
+	void CloseScript(const char* tm) const override;
+	void FinalizeEngine(const char* tm) const override;
+
+	void WorkGetString(const char* tm) const override;
+	void WorkCallEmpty(const char* tm) const override;
+	void WorkCallSimple(const char* tm) const override;
+	void* WorkBubbleSortArgs(const char* tm, bool descending) const override;
+	void WorkBubbleSortRun(const char* tm, void* py_args, bool descending) const override;
+
+	inline static const auto _ = registrar(std::make_unique<test_c_t>());
 };
+
+void test_c_t::InitializeEngine(const char* tm) const
+{	START(tm);
+	FINISH;
+}
+
+void* test_c_t::CompileScript(const char* tm) const
+{	return nullptr;
+}
+
+std::string test_c_t::ExportCode(const char* tm, void*) const
+{	return {};
+}
+
+void* test_c_t::ImportCode(const char* tm, const std::string& p_code) const
+{	return nullptr;
+}
+
+void test_c_t::ExecutionScript(const char* tm, void*) const
+{	START(tm);
+	FINISH;
+}
+
+void test_c_t::CloseScript(const char* tm) const
+{	START(tm);
+	FINISH;
+}
+
+void test_c_t::FinalizeEngine(const char* tm) const
+{	START(tm);
+	FINISH;
+}
+
+void test_c_t::WorkGetString(const char* tm) const
+{	START(tm);
+		const char *s = ccc::global_string;
+		assert(0 == std::strcmp(sample, s));
+	FINISH;
+}
+
+void test_c_t::WorkCallEmpty(const char* tm) const
+{	START(tm);
+		auto func = ccc::empty_func;
+		assert(func);
+		func();
+	FINISH;
+}
+
+void test_c_t::WorkCallSimple(const char* tm) const
+{	START(tm);
+		const auto v = ccc::simple_func(777);
+		assert(777 == v);
+	FINISH;
+}
+
+void* test_c_t::WorkBubbleSortArgs(const char* tm, bool ) const
+{	std::vector<int> *result = nullptr;
+	START(tm);
+		verify(result = new std::vector<int>(std::begin(sample_raw), std::end(sample_raw)));
+	FINISH;
+	return result;
+}
+	
+void test_c_t::WorkBubbleSortRun(const char* tm, void* args, bool descending) const
+{	std::vector<int> result;
+	START(tm);
+		auto func = ccc::bubble_sort;
+		assert(func);
+		auto v = static_cast<const std::vector<int>*>(args);
+		assert(v);
+		result = func(*v, descending? ccc::c_descending: nullptr);
+		delete v;
+	FINISH;
+
+	auto &sample = descending? sample_descending_sorted: sample_ascending_sorted;
+	for (unsigned i = 0; i < std::size(sample_ascending_sorted); ++i)
+	{	[[maybe_unused]] const auto v = result[i];
+		assert(v == sample[i]);
+	}
+}

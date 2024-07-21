@@ -52,8 +52,7 @@ extern "C"
 {
 	// c_ascending - C-функция которая будет зарегистрирована в Python под именем "c_ascending" и будет использована внутри скрипта
 	static int c_ascending(lua_State *L)
-	{
-		assert(2 == lua_gettop(L));
+	{	assert(2 == lua_gettop(L));
 		const auto l = lua_tointeger(L, 1);
 		const auto r = lua_tointeger(L, 2);
 		lua_pushboolean(L, l < r);
@@ -61,9 +60,8 @@ extern "C"
 	}
 
 	// c_descending - C-функция которая будет передана из C-кода в Python-скрипт в качестве аргумента функции bubble_sort
-	extern "C" static int c_descending(lua_State *L)
-	{
-		assert(2 == lua_gettop(L));
+	static int c_descending(lua_State *L)
+	{	assert(2 == lua_gettop(L));
 		const auto l = lua_tointeger(L, 1);
 		const auto r = lua_tointeger(L, 2);
 		lua_pushboolean(L, l > r);
