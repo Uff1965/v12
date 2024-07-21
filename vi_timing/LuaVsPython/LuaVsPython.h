@@ -7,9 +7,9 @@
 #	include <thread>
 
 #	ifdef NDEBUG
-constexpr auto sample_size = 1'000U;
+constexpr auto sample_size = 3'000U;
 #	else
-constexpr auto sample_size = 100U;
+constexpr auto sample_size = 300U;
 #	endif
 
 extern const int(&sample_raw)[sample_size];
@@ -51,13 +51,13 @@ struct test_interface_t: test_t
 inline void test_interface_t::test() const
 {
 	InitializeEngine("1. Initialize");
-	auto p_code = CompileScript("2. Compile");
+	auto code = CompileScript("2. Compile");
 	{
-		std::string buff = ExportCode("3. Export P-code", p_code);
-		p_code = nullptr;
-		p_code = ImportCode("4. Import P-code", buff);
+		std::string p_code = ExportCode("3. Export P-code", code);
+		code = nullptr;
+		code = ImportCode("4. Import P-code", p_code);
 	}
-	ExecutionScript("5. Execution", p_code);
+	ExecutionScript("5. Execution", code);
 
 	{	WorkGetString("6.1 Get string");
 
@@ -84,14 +84,14 @@ inline void test_interface_t::test() const
 	FinalizeEngine("8. Finalize");
 }
 
-//#	define START(s) \
-//	std::this_thread::yield(); \
-//	for (auto n = 5; n--;) { VI_TM(s); } \
-//	VI_TM_CLEAR(s); \
-//	do { VI_TM(s)
-
 #	define START(s) \
+	std::this_thread::yield(); \
+	for (auto n = 5; n--;) { VI_TM(s); } \
+	VI_TM_CLEAR(s); \
 	do { VI_TM(s)
+
+//#	define START(s) \
+//	do { VI_TM(s)
 
 #	define FINISH \
 	} while(0)
