@@ -4,8 +4,6 @@
 
 #	include <memory>
 #	include <string>
-#	include <string_view>
-#	include <vector>
 
 #	ifdef NDEBUG
 constexpr auto sample_size = 3'000U;
@@ -21,8 +19,6 @@ extern const int(&sample_descending)[sample_size];
 class test_t
 {
 public:
-	static std::vector<std::unique_ptr<const test_t>> items_;
-
 	virtual ~test_t() = default;
 	virtual void test() const = 0;
 	virtual std::string title() const = 0;
@@ -36,7 +32,7 @@ class test_interface_t: public test_t
 	virtual void InitializeEngine(const char* tm) const = 0;
 	virtual void* CompileScript(const char* tm) const = 0;
 	virtual std::string ExportCode(const char* tm, void* code) const = 0;
-	virtual void* ImportCode(const char* tm, const std::string& code) const = 0;
+	virtual void* ImportCode(const char* tm, const std::string& p_code) const = 0;
 	virtual void ExecutionScript(const char* tm, void* code) const = 0;
 	virtual void Work() const;
 	virtual void CloseScript(const char* tm) const = 0;

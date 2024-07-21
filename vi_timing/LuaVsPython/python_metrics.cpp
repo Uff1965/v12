@@ -11,20 +11,16 @@
 #include <vi_timing/timing.h>
 
 #include <Python.h>
-#include <marshal.h>
+#include <marshal.h> // For PyMarshal_WriteObjectToString, PyMarshal_ReadObjectFromString
 
 #include <cassert>
-#include <memory>
-#include <string>
 #include <thread>
 
 //	inline bool verify(bool b) { assert(b); return b; } //-V:verify:530 //-V3549
 
 #define START(s) \
 	std::this_thread::yield(); \
-	for (auto n = 5; n--;) \
-	{	VI_TM(s); \
-	} \
+	for (auto n = 5; n--;) { VI_TM(s); } \
 	VI_TM_CLEAR(s); \
 	do { VI_TM(s)
 
@@ -76,9 +72,9 @@ struct test_python_t final: test_interface_t
 
 	void InitializeEngine(const char* tm) const override;
 	void* CompileScript(const char* tm) const override;
-	std::string ExportCode(const char* tm, void* code) const override;
-	void* ImportCode(const char* tm, const std::string& code) const override;
-	void ExecutionScript(const char* tm, void* code) const override;
+	std::string ExportCode(const char* tm, void* py_obj) const override;
+	void* ImportCode(const char* tm, const std::string& p_code) const override;
+	void ExecutionScript(const char* tm, void* py_obj) const override;
 	void CloseScript(const char* tm) const override;
 	void FinalizeEngine(const char* tm) const override;
 
@@ -86,7 +82,7 @@ struct test_python_t final: test_interface_t
 	void WorkCallEmpty(const char* tm) const override;
 	void WorkCallSimple(const char* tm) const override;
 	void* WorkBubbleSortArgs(const char* tm, bool descending) const override;
-	void WorkBubbleSortRun(const char* tm, void* args, bool descending) const override;
+	void WorkBubbleSortRun(const char* tm, void* py_args, bool descending) const override;
 
 	mutable PyObject *dict_ = nullptr;
 
@@ -108,12 +104,13 @@ void* test_python_t::CompileScript(const char* tm) const
 }
 
 std::string test_python_t::ExportCode(const char* tm, void* code) const
-{	std::string result;
+{	auto py_code = static_cast<PyObject*>(code);
+	assert(PyCode_Check(py_code));
+	std::string result;
 	START(tm);
-		auto py_code = static_cast<PyObject*>(code);
 		auto py_buffer = PyMarshal_WriteObjectToString(py_code, Py_MARSHAL_VERSION); // Сериализуем код
 		assert(py_buffer);
-		Py_DECREF(py_code);
+		Py_DECREF(py_code); // Удаляем скомпилированный код
 		char *buffer = nullptr;
 		Py_ssize_t buffer_size = 0;
 		verify(0 == PyBytes_AsStringAndSize(py_buffer, &buffer, &buffer_size)); // Сохраняем P-код
@@ -126,16 +123,20 @@ std::string test_python_t::ExportCode(const char* tm, void* code) const
 void* test_python_t::ImportCode(const char* tm, const std::string &code) const
 {	void *result = nullptr;
 	START(tm);
-		result = PyMarshal_ReadObjectFromString(code.data(), code.size()); // Десериализуем код
-		assert(result);
+		verify(result = PyMarshal_ReadObjectFromString(code.data(), code.size())); // Десериализуем код
 	FINISH;
 	return result;
 }
 
 void test_python_t::ExecutionScript(const char* tm, void* code) const
 {	auto py_code = static_cast<PyObject*>(code);
+	assert(PyCode_Check(py_code));
 	START(tm);
 		verify(dict_ = PyDict_New());
+		auto py_module = PyEval_EvalCode(py_code, dict_, nullptr);
+		assert(py_module);
+		Py_DECREF(py_module);
+		Py_DECREF(py_code);
 
 		static PyMethodDef func_def =
 		{	nullptr, // Имя функции
@@ -146,21 +147,16 @@ void test_python_t::ExecutionScript(const char* tm, void* code) const
 		auto func = PyCFunction_NewEx(&func_def, NULL, NULL);
 		assert(func);
 		verify(0 == PyDict_SetItemString(dict_, "c_ascending", func));
-
-		auto module = PyEval_EvalCode(py_code, dict_, nullptr);
-		assert(module);
-		Py_DECREF(module);
+		Py_DECREF(func);
 	FINISH;
-
-	Py_DECREF(py_code);
 }
 
 void test_python_t::WorkGetString(const char* tm) const
 {	START(tm);
 		auto p = PyDict_GetItemString(dict_, "global_string");
 		assert(p);
-		char* sz{};
-		verify(PyArg_Parse(p, "s", &sz));
+		char* sz = nullptr;
+		verify(0 != PyArg_Parse(p, "s", &sz));
 		assert(sz && 0 == strcmp(sz, sample));
 	FINISH;
 }
@@ -192,9 +188,10 @@ void test_python_t::WorkCallSimple(const char* tm) const
 void* test_python_t::WorkBubbleSortArgs(const char* tm, bool descending) const
 {	PyObject *result = nullptr;
 	START(tm);
-		verify(result = PyTuple_New(descending? 2: 1));
+		// descending определяет передаём ли мы в функцию сортировки дополнительный аргумент
+		verify(result = PyTuple_New(descending? 2: 1)); // Создаём кортеж аргументов из 1 или 2 элементов
 
-		{	auto tuple = PyTuple_New(std::size(sample_raw));
+		{	auto tuple = PyTuple_New(std::size(sample_raw)); // первым аргументом передаём список для сортировки
 			assert(tuple);
 			for (int i = 0; i < std::size(sample_raw); ++i)
 			{	auto obj = PyLong_FromLong(sample_raw[i]);
@@ -205,7 +202,8 @@ void* test_python_t::WorkBubbleSortArgs(const char* tm, bool descending) const
 		}
 
 		if(descending)
-		{	static PyMethodDef func_def = { nullptr, c_descending, METH_VARARGS | METH_STATIC, nullptr };
+		{	// Вторым аргументом передаём функцию сравнения для сортировки по убыванию
+			static PyMethodDef func_def = { nullptr, c_descending, METH_VARARGS | METH_STATIC, nullptr };
 			auto func = PyCFunction_NewEx(&func_def, NULL, NULL);
 			assert(func);
 			verify(0 == PyTuple_SetItem(result, 1, func));
@@ -214,24 +212,24 @@ void* test_python_t::WorkBubbleSortArgs(const char* tm, bool descending) const
 	return result;
 }
 
-void test_python_t::WorkBubbleSortRun(const char* tm, void *a, bool descending) const
-{	PyObject *result = nullptr;
+void test_python_t::WorkBubbleSortRun(const char* tm, void *args, bool descending) const
+{	auto py_args = static_cast<PyObject*>(args);
+	assert(PyTuple_Check(py_args));
+	PyObject *result = nullptr;
 	START(tm);
-		auto args = static_cast<PyObject*>(a);
-		// Вызываем функцию и получаем результат
 		auto func = PyDict_GetItemString(dict_, "bubble_sort");
 		assert(func && PyCallable_Check(func));
-		// Создаем аргументы для вызова функции (tuple с одним элементом - нашим списком)
-		verify(result = PyObject_CallObject(func, args));
-		Py_DECREF(args);
+		verify(result = PyObject_CallObject(func, py_args));
+		Py_DECREF(py_args);
 	FINISH;
 
+	// Проверяем результат
 	auto &smpl = descending? sample_descending: sample_sorted;
 	for (auto&& i : smpl)
 	{	auto obj = PyList_GetItem(result, &i - smpl);
 		assert(obj);
 		int val = 0;
-		verify(PyArg_Parse(obj, "i", &val));
+		verify(0 != PyArg_Parse(obj, "i", &val));
 		assert(val == i);
 	}
 	Py_DECREF(result);

@@ -65,9 +65,9 @@ const int(&sample_raw)[sample_size] = raw;
 const int(&sample_sorted)[sample_size] = sorted;
 const int(&sample_descending)[sample_size] = descending;
 
-std::vector<std::unique_ptr<const test_t>> test_t::items_;
+std::vector<std::unique_ptr<const test_t>> Items;
 bool test_t::registrar(std::unique_ptr<test_t> p)
-{	items_.emplace_back(std::move(p));
+{	Items.emplace_back(std::move(p));
 	return true;
 }
 
@@ -112,11 +112,11 @@ int main()
 
 	vi_tm::warming();
 
-	for (const auto &t : test_t::items_)
+	for (const auto &t : Items)
 	{	t->test(); // Подгружаем весь код из библиотек.
 	}
 
-	for (const auto &t : test_t::items_)
+	for (const auto &t : Items)
 	{	std::cout << "Timing " << t->title() << "\n";
 		VI_TM_CLEAR();
 		t->test();
