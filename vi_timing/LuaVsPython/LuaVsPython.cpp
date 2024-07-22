@@ -4,6 +4,7 @@
 #include "header.h"
 
 #include "LuaVsPython.h"
+#include "statistics.h"
 
 #include <Windows.h>
 
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <random>
 #include <thread>
 
@@ -18,6 +20,8 @@ using namespace std::literals;
 
 namespace
 {
+	constexpr auto g_repeat = 20U;
+
 	const auto _ =
 	(
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -74,7 +78,13 @@ bool test_t::registrar(std::unique_ptr<test_t> p)
 	return true;
 }
 
-int main()
+struct item_t
+{	vi_tmTicks_t time_;
+	std::size_t amount_;
+	std::size_t calls_cnt_;
+};
+
+int main(int argc, char* argv[])
 {
 //	VI_TM_FUNC;
 
@@ -84,15 +94,60 @@ int main()
 	{	t->test(); // Подгружаем весь код из библиотек.
 	}
 
-	unsigned long flags = vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowResolution;
-	for (const auto &t : Items())
-	{	std::cout << "Timing: \'" << t->title() << "\'\n";
-		VI_TM_CLEAR();
-		t->test();
-		VI_TM_REPORT(flags);
-		endl(std::cout);
+	std::map<std::string, std::map<std::string, std::vector<item_t>>> reports;
 
-		flags = vi_tmSortByName | vi_tmSortAscending;
+	unsigned long flags = vi_tmSortByName | vi_tmSortAscending | vi_tmShowOverhead | vi_tmShowDuration | vi_tmShowUnit | vi_tmShowResolution;
+
+	for (unsigned n = 0; n < g_repeat; ++n)
+	{
+		std::cout << "Repeat: " << n + 1 << " of " << g_repeat << "\n";
+
+		for (const auto &t : Items())
+		{
+			std::cout << "Engine: \'" << t->title() << "\'\n";
+
+			auto &rep = reports[t->title()];
+			VI_TM_CLEAR();
+			t->test();
+			VI_TM_REPORT(flags);
+			endl(std::cout);
+			flags = vi_tmSortByName | vi_tmSortAscending;
+
+			auto fn = [](const char *name, vi_tmTicks_t time, std::size_t amount, std::size_t calls_cnt, void *data)
+				{
+					auto &report = *static_cast<std::map<std::string, std::vector<item_t>>*>(data);
+
+					auto &items = report[name];
+					items.reserve(g_repeat);
+					items.emplace_back(time, amount, calls_cnt);
+					return -1;
+				};
+			vi_tmResults(fn, &rep);
+		}
+	}
+
+	{
+		std::map<std::string, std::map<std::string, misc::statistics_t>> result;
+
+		for (auto &&engine : reports)
+		{
+			std::cout << "Engine: \'" << engine.first << "\'\n";
+			for (auto &&action : engine.second)
+			{
+				std::vector<double> data(action.second.size());
+				std::transform(action.second.begin(), action.second.end(), data.begin(), [](const auto &item) { return item.time_; });
+
+				std::cout << action.first << ":\t";
+				const auto stat = misc::calc_stat(data);
+
+				std::cout <<
+					stat.average_ << "\t" <<
+					stat.median_ << "\t" <<
+					stat.min_ << "\t" <<
+					stat.max_ << "\t" <<
+					stat.deviation_ << "\n";
+			}
+		}
 	}
 
 	std::cout << "Hello World!\n";

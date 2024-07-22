@@ -9,7 +9,7 @@
 #	ifdef NDEBUG
 constexpr auto sample_size = 3'000U;
 #	else
-constexpr auto sample_size = 300U;
+constexpr auto sample_size = 600U;
 #	endif
 
 extern const int(&sample_raw)[sample_size];
