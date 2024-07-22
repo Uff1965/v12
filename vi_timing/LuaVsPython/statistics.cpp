@@ -43,7 +43,7 @@ namespace
 			constexpr auto sd1 = 0.98974331861079 / mean1;
 			constexpr auto median1 = 4.0;
 			assert(std::abs(average(std::begin(samples1), std::end(samples1)) - mean1) < epsilon);
-			assert(std::abs(standard_deviation(std::begin(samples1), std::end(samples1)) / sd1 - 1.0) < epsilon);
+			assert(std::abs(standard_deviation(std::begin(samples1), std::end(samples1)) - sd1) < epsilon);
 			assert(std::abs(median(std::begin(samples1), std::end(samples1)) - median1) < epsilon);
 
 			static constexpr double samples2[] = {5, 2, 4, 7, 4, 4, 5, 5, 9, 3};
@@ -51,8 +51,21 @@ namespace
 			constexpr auto sd2 = 1.8867962264113 / mean2;
 			constexpr auto median2 = 4.5;
 			assert(std::abs(average(std::begin(samples2), std::end(samples2)) - mean2) < epsilon);
-			assert(std::abs(standard_deviation(std::begin(samples2), std::end(samples2)) / sd2 - 1.0) < epsilon);
+			assert(std::abs(standard_deviation(std::begin(samples2), std::end(samples2)) - sd2) < epsilon);
 			assert(std::abs(median(std::begin(samples2), std::end(samples2)) - median2) < epsilon);
+
+			static constexpr double samples3[] =
+			{	14.0, 8.9, 1.7, 1.4, 1.7,
+				1.4, 8.3, 1.2, 9.1, 11.0,
+				6.7, 11.0, 3.3, 12.0, 1.7,
+				11.0, 1.4, 1.4, 11.0, 1.2
+			};
+			constexpr auto mean3 = 5.97;
+			constexpr auto sd3 = 4.5676142569179 / mean3;
+			constexpr auto median3 = 5.0;
+			assert(std::abs(average(std::begin(samples3), std::end(samples3)) - mean3) < epsilon);
+			assert(std::abs(standard_deviation(std::begin(samples3), std::end(samples3)) - sd3) < epsilon);
+			assert(std::abs(median(std::begin(samples3), std::end(samples3)) - median3) < epsilon);
 
 			return 0;
 		}();

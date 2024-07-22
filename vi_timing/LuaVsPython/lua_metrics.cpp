@@ -14,6 +14,9 @@
 
 #include <cassert>
 
+// verify реализован следующим образом, чтобы не засорять код проверками на nullptr:
+// inline bool verify(bool b) { assert(b); return b; }
+
 namespace
 {
 	// Текст скрипта на Lua используемый в тесте:
@@ -28,8 +31,9 @@ function simple_func(a)
 end
 
 function bubble_sort(aa, cmp)
-    cmp = cmp or function(l, r) return l < r end
-
+    if not cmp then
+        cmp = c_ascending
+    end
     local a = {table.unpack(aa)}
     local swapped = true
     while swapped do
@@ -185,11 +189,11 @@ void* test_lua_t::WorkBubbleSortArgs(const char* tm, bool descending) const
 		// Создаем и заполняем таблицу с числами для сортировки
 		lua_createtable(L, static_cast<unsigned>(std::size(sample_raw)), 0);
 		for (int i = 1; i <= std::size(sample_raw); ++i)
-		{	lua_pushnumber(L, i); // Ключ
-			lua_pushnumber(L, sample_raw[i - 1]); // Значение
-			lua_settable(L, -3);
+		{	lua_pushnumber(L, sample_raw[i - 1]); // Значение
+			lua_rawseti(L, -2, i);
 		}
 		assert(1 == lua_gettop(L)); // На стеке таблица
+		assert(LUA_TTABLE == lua_type(L, -1));
 	FINISH;
 	return nullptr;
 }
@@ -210,6 +214,7 @@ void test_lua_t::WorkBubbleSortRun(const char* tm, void* py_args, bool descendin
 			verify(LUA_OK == lua_pcall(L, 1, 1, 0));
 		}
 		assert(1 == lua_gettop(L)); // На стеке остался результат
+		assert(LUA_TTABLE == lua_type(L, -1));
 	FINISH;
 
 	// Проверяем результат сортировки:

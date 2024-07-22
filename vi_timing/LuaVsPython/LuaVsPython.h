@@ -84,14 +84,14 @@ inline void test_interface_t::test() const
 	FinalizeEngine("8. Finalize");
 }
 
-#	define START(s) \
-	std::this_thread::yield(); \
-	for (auto n = 5; n--;) { VI_TM(s); } \
-	VI_TM_CLEAR(s); \
-	do { VI_TM(s)
-
 //#	define START(s) \
+//	std::this_thread::yield(); \
+//	for (auto n = 5; n--;) { VI_TM(s); } \
+//	VI_TM_CLEAR(s); \
 //	do { VI_TM(s)
+
+#	define START(s) \
+	do { VI_TM(s)
 
 #	define FINISH \
 	} while(0)

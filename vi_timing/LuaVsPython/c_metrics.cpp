@@ -87,15 +87,21 @@ void test_c_t::InitializeEngine(const char* tm) const
 }
 
 void* test_c_t::CompileScript(const char* tm) const
-{	return nullptr;
+{	START(tm);
+	FINISH;
+	return nullptr;
 }
 
 std::string test_c_t::ExportCode(const char* tm, void*) const
-{	return {};
+{	START(tm);
+	FINISH;
+	return {};
 }
 
 void* test_c_t::ImportCode(const char* tm, const std::string& p_code) const
-{	return nullptr;
+{	START(tm);
+	FINISH;
+	return nullptr;
 }
 
 void test_c_t::ExecutionScript(const char* tm, void*) const
