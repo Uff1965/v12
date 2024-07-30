@@ -36,14 +36,13 @@ struct test_interface_t: test_t
 	virtual std::string ExportCode(const char* title, void* code) const = 0;
 	virtual void* ImportCode(const char* title, const std::string& p_code) const = 0;
 	virtual void ExecutionScript(const char* title, void* code) const = 0;
+	virtual void FunctionRegister(const char* title) const = 0;
 	// «десь будут вызваны функции Work*()
-	virtual void CloseScript(const char* title) const = 0;
 	virtual void FinalizeEngine(const char* title) const = 0;
 
 	// Ёти функции будут вызваны после ExecutionScript() и перед CloseScript() в пор€дке объ€влени€ (некотороые по несколько раз):
 	virtual void WorkGetString(const char* title) const = 0;
 	virtual void WorkCallEmpty(const char* title) const = 0;
-	virtual void WorkCallSimple(const char* title) const = 0;
 	virtual void* WorkBubbleSortArgs(const char* title, bool descending) const = 0;
 	virtual void WorkBubbleSortRun(const char* title, void* args, bool descending) const = 0;
 };
@@ -58,37 +57,25 @@ inline void test_interface_t::test() const
 		code = ImportCode("4. Import P-code", p_code);
 	}
 	ExecutionScript("5. Execution", code);
+	FunctionRegister("6 Register function");
 
-	{	WorkGetString("6.1 Get string");
+	{	WorkGetString("7.1 Get string");
 
-		WorkCallEmpty("6.2.1 Call empty");
-		WorkCallEmpty("6.2.2 Call empty");
-		WorkCallEmpty("6.2.3 Call empty");
-		WorkCallEmpty("6.2.4 Call empty");
-		WorkCallEmpty("6.2.5 Call empty");
+		WorkCallEmpty("7.2.1 Call empty");
+		WorkCallEmpty("7.2.2 Call empty");
+		WorkCallEmpty("7.2.3 Call empty");
+		WorkCallEmpty("7.2.4 Call empty");
+		WorkCallEmpty("7.2.5 Call empty");
 
-		WorkCallSimple("6.3.1 Call simple");
-		WorkCallSimple("6.3.2 Call simple");
-		WorkCallSimple("6.3.3 Call simple");
-		WorkCallSimple("6.3.4 Call simple");
-		WorkCallSimple("6.3.5 Call simple");
+		void *args = WorkBubbleSortArgs("7.3.1 bubble_sort (arg init)", true);
+		WorkBubbleSortRun("7.3.2 bubble_sort ascending", args, true);
 
-		void *args = WorkBubbleSortArgs("6.4.1 bubble_sort (arg init)", false);
-		WorkBubbleSortRun("6.4.2 bubble_sort", args, false);
-
-		args = WorkBubbleSortArgs("6.5.1 bubble_sort (arg init)", true);
-		WorkBubbleSortRun("6.5.2 bubble_sort", args, true);
+		args = WorkBubbleSortArgs("7.4.1 bubble_sort (arg init)", false);
+		WorkBubbleSortRun("7.4.2 bubble_sort descending", args, false);
 	}
 
-	CloseScript("7. Close");
 	FinalizeEngine("8. Finalize");
 }
-
-//#	define START(s) \
-//	std::this_thread::yield(); \
-//	for (auto n = 5; n--;) { VI_TM(s); } \
-//	VI_TM_CLEAR(s); \
-//	do { VI_TM(s)
 
 #	define START(s) \
 	do { VI_TM(s)

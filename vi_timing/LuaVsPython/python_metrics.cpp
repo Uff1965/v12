@@ -14,12 +14,41 @@
 #include <marshal.h> // For PyMarshal_WriteObjectToString, PyMarshal_ReadObjectFromString
 
 #include <cassert>
+#include <fstream>
+#include <sstream>
 
-// verify реализован следующим образом, чтобы не засорять код проверками на nullptr:
-// inline bool verify(bool b) { assert(b); return b; }
+#ifndef _DLL
+	#error "For the PyRun_SimpleFile function to work, the MS RTL must be loaded from a DLL (MS compiler option: /MD or /MDd). Established experimentally on Python v.3.12.2"
+#endif
+constexpr auto py_ver = PY_VERSION_HEX;
+constexpr char py_ver_s[] = PY_VERSION;
 
 namespace
 {
+	const char filename[] = "sample.py";
+
+	auto read_file = [](const char *filename) -> std::string
+	{
+//*
+		std::ifstream file(filename);
+		assert(file);
+		std::ostringstream ss;
+		ss << file.rdbuf();
+		return ss.str();
+/*/
+		auto f = std::fopen(filename, "r");
+		assert(f);
+		verify(0 == fseek(f, 0, SEEK_END));
+		auto sz = ftell(f);
+		verify(0 == fseek(f, 0, SEEK_SET));
+		std::string result;
+		result.resize(sz);
+		verify(sz == fread(result.data(), 1, sz, f));
+		verify(0 == fclose(f));
+		return result;
+//*/
+	};
+
 	// Текст скрипта на Python используемый в тесте:
 	constexpr char sample_py[] = R"(
 global_string = "global string"
@@ -68,6 +97,8 @@ extern "C"
 
 struct test_python_t final: test_interface_t
 {
+	std::string sample_py = read_file(filename);
+
 	std::string title() const override { return "PYTHON"; };
 
 	void InitializeEngine(const char* tm) const override;
@@ -75,12 +106,11 @@ struct test_python_t final: test_interface_t
 	std::string ExportCode(const char* tm, void* py_obj) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void* py_obj) const override;
-	void CloseScript(const char* tm) const override;
+	void FunctionRegister(const char* tm) const override;
 	void FinalizeEngine(const char* tm) const override;
 
 	void WorkGetString(const char* tm) const override;
 	void WorkCallEmpty(const char* tm) const override;
-	void WorkCallSimple(const char* tm) const override;
 	void* WorkBubbleSortArgs(const char* tm, bool descending) const override;
 	void WorkBubbleSortRun(const char* tm, void* py_args, bool descending) const override;
 
@@ -98,14 +128,14 @@ void test_python_t::InitializeEngine(const char* tm) const
 void* test_python_t::CompileScript(const char* tm) const
 {	PyObject *result = nullptr;
 	START(tm);
-		verify(result = Py_CompileString(sample_py, "sample.py", Py_file_input));
+		verify(result = Py_CompileString(sample_py.c_str(), "sample.py", Py_file_input));
 	FINISH;
 	return result;
 }
 
 std::string test_python_t::ExportCode(const char* tm, void* code) const
 {	auto py_code = static_cast<PyObject*>(code);
-	assert(PyCode_Check(py_code));
+	assert(py_code && PyCode_Check(py_code));
 	std::string result;
 	START(tm);
 		auto py_buffer = PyMarshal_WriteObjectToString(py_code, Py_MARSHAL_VERSION); // Сериализуем код
@@ -137,17 +167,29 @@ void test_python_t::ExecutionScript(const char* tm, void* code) const
 		assert(py_module);
 		Py_DECREF(py_module);
 		Py_DECREF(py_code);
+	FINISH;
+}
 
-		static PyMethodDef func_def =
-		{	nullptr, // Имя функции
-			c_ascending, // Указатель на функцию
-			METH_VARARGS, // Тип аргументов
-			nullptr // Документация
-		};
-		auto func = PyCFunction_NewEx(&func_def, NULL, NULL);
-		assert(func);
-		verify(0 == PyDict_SetItemString(dict_, "c_ascending", func));
-		Py_DECREF(func);
+void test_python_t::FunctionRegister(const char* tm) const
+{	START(tm);
+	static PyMethodDef func_def =
+	{	nullptr, // Имя функции
+		c_ascending, // Указатель на функцию
+		METH_VARARGS, // Тип аргументов
+		nullptr // Документация
+	};
+	auto func = PyCFunction_NewEx(&func_def, NULL, NULL);
+	assert(func);
+	verify(0 == PyDict_SetItemString(dict_, "c_ascending", func));
+	Py_DECREF(func);
+	FINISH;
+}
+
+void test_python_t::FinalizeEngine(const char* tm) const
+{	START(tm);
+		Py_DECREF(dict_);
+		dict_ = nullptr;
+		verify(0 == Py_FinalizeEx()); // Завершаем работу интерпретатора
 	FINISH;
 }
 
@@ -171,28 +213,15 @@ void test_python_t::WorkCallEmpty(const char* tm) const
 	FINISH;
 }
 
-void test_python_t::WorkCallSimple(const char* tm) const
-{	START(tm);
-		auto func = PyDict_GetItemString(dict_, "simple_func");
-		assert(func);
-		auto arg = PyLong_FromLong(777);
-		auto ret = PyObject_CallFunctionObjArgs(func, arg, nullptr);
-		assert(ret);
-		auto result = PyLong_AsLong(ret);
-		assert(result == 777);
-		Py_DECREF(ret);
-		Py_DECREF(arg);
-	FINISH;
-}
-
 void* test_python_t::WorkBubbleSortArgs(const char* tm, bool descending) const
 {	PyObject *result = nullptr;
 	START(tm);
 		// descending определяет передаём ли мы в функцию сортировки дополнительный аргумент
 		verify(result = PyTuple_New(descending? 2: 1)); // Создаём кортеж аргументов из 1 или 2 элементов
+		assert(result && PyTuple_Check(result));
 
 		{	auto tuple = PyTuple_New(std::size(sample_raw)); // первым аргументом передаём список для сортировки
-			assert(tuple);
+			assert(tuple && PyTuple_Check(tuple));
 			for (int i = 0; i < std::size(sample_raw); ++i)
 			{	auto obj = PyLong_FromLong(sample_raw[i]);
 				assert(obj);
@@ -235,15 +264,100 @@ void test_python_t::WorkBubbleSortRun(const char* tm, void *args, bool descendin
 	Py_DECREF(result);
 }
 
-void test_python_t::CloseScript(const char* tm) const
-{	START(tm);
-		Py_DECREF(dict_);
-		dict_ = nullptr;
-	FINISH;
-}
+struct test2_python_t: test_t
+{
+	void test() const override;
+	std::string title() const override { return "test2_python_t"; }
 
-void test_python_t::FinalizeEngine(const char* tm) const
-{	START(tm);
-		Py_Finalize(); // Завершаем работу интерпретатора
-	FINISH;
+	inline static const auto _ = registrar(std::make_unique<test2_python_t>());
+};
+
+void test2_python_t::test() const
+{
+	for(int i = 0; i < 100; ++i)
+	{ // Warming up file reading.
+		read_file(filename);
+	}
+
+	{	VI_TM("*P* 1. PyRun_SimpleFile");
+		Py_InitializeEx(0);
+
+#pragma warning(suppress: 4996)
+		FILE *file = std::fopen(filename, "r");
+		assert(file && !std::ferror(file));
+		verify( 0 == PyRun_SimpleFile(file, filename));
+		verify(0 == std::fclose(file));
+
+		verify(0 == Py_FinalizeEx());
+	}
+
+	{	VI_TM("*P* 2. read_file + PyRun_String");
+		Py_Initialize();
+
+		const auto &&text = read_file(filename);
+
+		auto py_dict = PyDict_New();
+		verify(py_dict);
+
+		auto py_obj = PyRun_String(text.data(), Py_file_input, py_dict, nullptr);
+		assert(py_obj);
+
+		Py_DECREF(py_dict);
+		verify(0 == Py_FinalizeEx());
+	}
+
+	{	VI_TM("*P* 3. read_file + Py_CompileString + PyEval_EvalCode");
+		Py_Initialize();
+
+		const auto &&text = read_file(filename);
+
+		PyObject *py_code = Py_CompileString(text.data(), "sample.py", Py_file_input);
+		assert(py_code);
+		auto py_dict = PyDict_New();
+		verify(py_dict);
+		auto py_module = PyEval_EvalCode(py_code, py_dict, nullptr);
+		assert(py_module);
+		Py_DECREF(py_module);
+		Py_DECREF(py_dict);
+		Py_DECREF(py_code);
+
+		verify(0 == Py_FinalizeEx());
+	}
+
+	{	std::string buffer;
+
+		Py_InitializeEx(0);
+		{
+			VI_TM("*P* 4. Export");
+
+			const auto &&text = read_file(filename);
+			PyObject *py_code = Py_CompileString(text.data(), "sample.py", Py_file_input);
+			assert(py_code && PyCode_Check(py_code));
+
+			auto py_buffer = PyMarshal_WriteObjectToString(py_code, Py_MARSHAL_VERSION); // Сериализуем код
+			assert(py_buffer);
+			Py_DECREF(py_code); // Удаляем скомпилированный код
+			char *buff = nullptr;
+			Py_ssize_t buff_size = 0;
+			verify(0 == PyBytes_AsStringAndSize(py_buffer, &buff, &buff_size)); // Сохраняем P-код
+			buffer.assign(buff, buff_size);
+			Py_DECREF(py_buffer);
+		}
+
+		{	VI_TM("*P* 5. Import");
+
+			auto py_code = PyMarshal_ReadObjectFromString(buffer.data(), buffer.size());
+			verify(py_code && PyCode_Check(py_code));
+
+			auto py_dict = PyDict_New();
+			verify(py_dict);
+			auto py_module = PyEval_EvalCode(py_code, py_dict, nullptr);
+			assert(py_module);
+			Py_DECREF(py_module);
+			Py_DECREF(py_dict);
+			Py_DECREF(py_code);
+		}
+
+		verify(0 == Py_FinalizeEx());
+	}
 }

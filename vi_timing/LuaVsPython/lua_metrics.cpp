@@ -13,12 +13,38 @@
 #include <lauxlib.h>
 
 #include <cassert>
+#include <fstream>
+#include <sstream>
 
 // verify реализован следующим образом, чтобы не засорять код проверками на nullptr:
 // inline bool verify(bool b) { assert(b); return b; }
 
 namespace
 {
+	constexpr char filename[] = "sample.lua";
+
+	auto read_file = [](const char *filename) -> std::string
+	{
+//*
+		std::ifstream file(filename);
+		assert(file);
+		std::ostringstream ss;
+		ss << file.rdbuf();
+		return ss.str();
+/*/
+		auto f = std::fopen(filename, "r");
+		assert(f);
+		verify(0 == fseek(f, 0, SEEK_END));
+		auto sz = ftell(f);
+		verify(0 == fseek(f, 0, SEEK_SET));
+		std::string result;
+		result.resize(sz);
+		verify(sz == fread(result.data(), 1, sz, f));
+		fclose(f);
+		return result;
+//*/
+	};
+
 	// Текст скрипта на Lua используемый в тесте:
 	constexpr char sample_lua[] = R"(
 global_string = "global string"
@@ -75,6 +101,8 @@ extern "C"
 
 struct test_lua_t final: test_interface_t
 {
+	std::string sample_lua = read_file(filename);
+
 	std::string title() const override { return "LUA"; };
 
 	void InitializeEngine(const char* tm) const override;
@@ -82,12 +110,11 @@ struct test_lua_t final: test_interface_t
 	std::string ExportCode(const char* tm, void*) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void*) const override;
-	void CloseScript(const char* tm) const override;
+	void FunctionRegister(const char* tm) const override;
 	void FinalizeEngine(const char* tm) const override;
 
 	void WorkGetString(const char* tm) const override;
 	void WorkCallEmpty(const char* tm) const override;
-	void WorkCallSimple(const char* tm) const override;
 	void* WorkBubbleSortArgs(const char* tm, bool descending) const override;
 	void WorkBubbleSortRun(const char* tm, void* py_args, bool descending) const override;
 
@@ -98,14 +125,15 @@ struct test_lua_t final: test_interface_t
 
 void test_lua_t::InitializeEngine(const char *tm) const
 {	START(tm);
+		verify(L = luaL_newstate());
+		luaL_openlibs(L);
+		assert(0 == lua_gettop(L)); // Стек пуст
 	FINISH;
 }
 
 void* test_lua_t::CompileScript(const char* tm) const
 {	START(tm);
-		verify(L = luaL_newstate());
-		luaL_openlibs(L);
-		verify(LUA_OK == luaL_loadstring(L, sample_lua));
+		verify(LUA_OK == luaL_loadstring(L, sample_lua.c_str()));
 		assert(1 == lua_gettop(L)); // На стеке скрипт
 	FINISH;
 	return nullptr;
@@ -115,8 +143,8 @@ std::string test_lua_t::ExportCode(const char* tm, void*) const
 {	std::string result;
 	START(tm);
 		auto writer = [](lua_State*, const void* p, std::size_t sz, void* ud)
-			{	auto& buf = *static_cast<std::string*>(ud);
-				buf.append(static_cast<const char*>(p), sz);
+			{	auto& str = *static_cast<std::string*>(ud);
+				str.append(static_cast<const char*>(p), sz);
 				return 0;
 			};
 		verify(LUA_OK == lua_dump(L, writer, &result, 0));
@@ -136,20 +164,20 @@ void* test_lua_t::ImportCode(const char* tm, const std::string& p_code) const
 
 void test_lua_t::ExecutionScript(const char* tm, void*) const
 {	START(tm);
-		lua_register(L, "c_ascending", c_ascending);
 		verify(LUA_OK == lua_pcall(L, 0, 0, 0));
-		assert(0 == lua_gettop(L)); // Стек пуст
 	FINISH;
 }
 
-void test_lua_t::CloseScript(const char* tm) const
+void test_lua_t::FunctionRegister(const char* tm) const
 {	START(tm);
-		lua_close(L);
+		lua_register(L, "c_ascending", c_ascending);
+		assert(0 == lua_gettop(L)); // Стек пуст
 	FINISH;
 }
 
 void test_lua_t::FinalizeEngine(const char* tm) const
 {	START(tm);
+		lua_close(L);
 	FINISH;
 }
 
@@ -172,19 +200,7 @@ void test_lua_t::WorkCallEmpty(const char* tm) const
 	FINISH;
 }
 
-void test_lua_t::WorkCallSimple(const char* tm) const
-{	START(tm);
-		verify(LUA_TFUNCTION == lua_getglobal(L, "simple_func"));
-		lua_pushinteger(L, 777);
-		verify(LUA_OK == lua_pcall(L, 1, 1, 0));
-		auto val = lua_tointeger(L, -1);
-		assert(777 == val);
-		lua_pop(L, 1);
-		assert(0 == lua_gettop(L)); // Стек пуст
-	FINISH;
-}
-
-void* test_lua_t::WorkBubbleSortArgs(const char* tm, bool descending) const
+void* test_lua_t::WorkBubbleSortArgs(const char* tm, bool) const
 {	START(tm);
 		// Создаем и заполняем таблицу с числами для сортировки
 		lua_createtable(L, static_cast<unsigned>(std::size(sample_raw)), 0);
@@ -231,4 +247,122 @@ void test_lua_t::WorkBubbleSortRun(const char* tm, void* py_args, bool descendin
 	}
 	lua_pop(L, 1);
 	assert(0 == lua_gettop(L)); // Стек пуст
+}
+
+struct test2_lua_t: test_t
+{
+	void test() const override;
+	std::string title() const override { return "test2_lua_t"; }
+
+	inline static const auto _ = registrar(std::make_unique<test2_lua_t>());
+};
+
+void test2_lua_t::test() const
+{
+	lua_State *L{};
+
+	for(int i = 0; i < 100; ++i)
+	{ // Warming up file reading.
+		read_file(filename);
+	}
+
+	{	VI_TM("*L* 1. luaL_dofile");
+		verify(L = luaL_newstate());
+		luaL_openlibs(L);
+		assert(0 == lua_gettop(L));
+
+		verify(LUA_OK == luaL_dofile(L, filename));
+		assert(0 == lua_gettop(L));
+
+		lua_close(L);
+		L = nullptr;
+	}
+
+	{	VI_TM("*L* 2. luaL_loadfile + lua_pcall");
+		verify(L = luaL_newstate());
+		luaL_openlibs(L);
+		assert(0 == lua_gettop(L));
+
+		verify(LUA_OK == luaL_loadfile(L, filename));
+		assert(1 == lua_gettop(L));
+		verify(LUA_OK == lua_pcall(L, 0, LUA_MULTRET, 0));
+		assert(0 == lua_gettop(L));
+
+		lua_close(L);
+		L = nullptr;
+	}
+
+	{	VI_TM("*L* 3. read_file + luaL_loadbuffer + lua_pcall");
+		verify(L = luaL_newstate());
+		luaL_openlibs(L);
+		assert(0 == lua_gettop(L));
+
+		const auto &&text = read_file(filename);
+
+		verify(LUA_OK == luaL_loadbuffer(L, text.data(), text.size(), filename));
+		assert(1 == lua_gettop(L));
+		verify(LUA_OK == lua_pcall(L, 0, LUA_MULTRET, 0));
+		assert(0 == lua_gettop(L));
+
+		lua_close(L);
+		L = nullptr;
+	}
+
+	{	VI_TM("*L* 4. read_file + luaL_loadbuffer + lua_call");
+		verify(L = luaL_newstate());
+		luaL_openlibs(L);
+		assert(0 == lua_gettop(L));
+
+		const auto &&text = read_file(filename);
+
+		verify(LUA_OK == luaL_loadbuffer(L, text.data(), text.size(), filename));
+		assert(1 == lua_gettop(L));
+		lua_call(L, 0, LUA_MULTRET);
+		assert(0 == lua_gettop(L));
+
+		lua_close(L);
+		L = nullptr;
+	}
+
+	{
+		std::string p_code;
+		{	VI_TM("*L* 5. Export");
+			verify(L = luaL_newstate());
+			luaL_openlibs(L);
+			assert(0 == lua_gettop(L));
+
+			const auto &&text = read_file(filename);
+
+			verify(LUA_OK == luaL_loadbuffer(L, text.data(), text.size(), filename));
+			assert(1 == lua_gettop(L));
+
+			auto writer = [](lua_State *, const void *p, std::size_t sz, void *ud)
+				{
+					auto &str = *static_cast<std::string *>(ud);
+					str.append(static_cast<const char *>(p), sz);
+					return 0;
+				};
+			verify(LUA_OK == lua_dump(L, writer, &p_code, 0));
+			lua_pop(L, 1);
+			assert(0 == lua_gettop(L)); // Стек пуст
+
+			lua_close(L);
+			L = nullptr;
+		}
+
+		{	VI_TM("*L* 6. Import");
+			verify(L = luaL_newstate());
+			luaL_openlibs(L);
+			assert(0 == lua_gettop(L));
+
+			verify(LUA_OK == luaL_loadbuffer(L, p_code.data(), p_code.size(), "<script>"));
+			assert(1 == lua_gettop(L)); // На стеке скрипт
+
+			verify(LUA_OK == lua_pcall(L, 0, LUA_MULTRET, 0));
+			assert(0 == lua_gettop(L));
+
+			lua_close(L);
+			L = nullptr;
+		}
+	}
 }

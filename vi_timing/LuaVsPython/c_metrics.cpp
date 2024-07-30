@@ -69,12 +69,11 @@ struct test_c_t final: test_interface_t
 	std::string ExportCode(const char* tm, void*) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void*) const override;
-	void CloseScript(const char* tm) const override;
+	void FunctionRegister(const char* tm) const override;
 	void FinalizeEngine(const char* tm) const override;
 
 	void WorkGetString(const char* tm) const override;
 	void WorkCallEmpty(const char* tm) const override;
-	void WorkCallSimple(const char* tm) const override;
 	void* WorkBubbleSortArgs(const char* tm, bool descending) const override;
 	void WorkBubbleSortRun(const char* tm, void* py_args, bool descending) const override;
 
@@ -109,7 +108,7 @@ void test_c_t::ExecutionScript(const char* tm, void*) const
 	FINISH;
 }
 
-void test_c_t::CloseScript(const char* tm) const
+void test_c_t::FunctionRegister(const char* tm) const
 {	START(tm);
 	FINISH;
 }
@@ -131,13 +130,6 @@ void test_c_t::WorkCallEmpty(const char* tm) const
 		auto func = ccc::empty_func;
 		assert(func);
 		func();
-	FINISH;
-}
-
-void test_c_t::WorkCallSimple(const char* tm) const
-{	START(tm);
-		const auto v = ccc::simple_func(777);
-		assert(777 == v);
 	FINISH;
 }
 

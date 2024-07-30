@@ -11,6 +11,7 @@
 #include <vi_timing/timing.h>
 
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <random>
@@ -20,7 +21,11 @@ using namespace std::literals;
 
 namespace
 {
+#ifdef NDEBUG
 	constexpr auto g_repeat = 20U;
+#else
+	constexpr auto g_repeat = 2U;
+#endif
 
 	const auto _ =
 	(
@@ -32,13 +37,13 @@ namespace
 		verify(::SetThreadAffinityMask(::GetCurrentThread(), 0b0000'0001)),
 		verify(::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS)),
 		verify(::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL)),
-		[]
-		{	if (const auto hOut = ::GetStdHandle(STD_OUTPUT_HANDLE); verify(hOut != NULL && hOut != INVALID_HANDLE_VALUE))
-			{	if (DWORD dwMode = 0; FALSE != ::GetConsoleMode(hOut, &dwMode))
-				{	verify(FALSE != ::SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING));
-				}
-			}
-		}(),
+		//[]
+		//{	if (const auto hOut = ::GetStdHandle(STD_OUTPUT_HANDLE); verify(hOut != NULL && hOut != INVALID_HANDLE_VALUE))
+		//	{	if (DWORD dwMode = 0; FALSE != ::GetConsoleMode(hOut, &dwMode))
+		//		{	verify(FALSE != ::SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING));
+		//		}
+		//	}
+		//}(),
 #endif
 		nullptr
 	);
@@ -88,6 +93,16 @@ int main(int argc, char* argv[])
 {
 //	VI_TM_FUNC;
 
+//	std::locale::global(std::locale(""));
+//	std::locale::global(std::locale{ "", LC_CTYPE });
+//	std::setlocale(LC_CTYPE, "");
+//	std::cout.imbue(std::locale{ "" });
+
+	struct thousands_sep_facet_t final : std::numpunct<char>
+	{	char do_decimal_point() const override { return ','; }
+	};
+	std::cout.imbue(std::locale(std::locale(), new thousands_sep_facet_t));
+
 	vi_tm::warming();
 
 	for (const auto &t : Items())
@@ -103,52 +118,84 @@ int main(int argc, char* argv[])
 		std::cout << "Repeat: " << n + 1 << " of " << g_repeat << "\n";
 
 		for (const auto &t : Items())
-		{
-			std::cout << "Engine: \'" << t->title() << "\'\n";
+		{	std::cout << "Engine: \'" << t->title() << "\'\n";
 
-			auto &rep = reports[t->title()];
 			VI_TM_CLEAR();
 			t->test();
 			VI_TM_REPORT(flags);
 			endl(std::cout);
 			flags = vi_tmSortByName | vi_tmSortAscending;
 
+			auto &rep = reports[t->title()];
 			auto fn = [](const char *name, vi_tmTicks_t time, std::size_t amount, std::size_t calls_cnt, void *data)
 				{
-					auto &report = *static_cast<std::map<std::string, std::vector<item_t>>*>(data);
-
-					auto &items = report[name];
-					items.reserve(g_repeat);
-					items.emplace_back(time, amount, calls_cnt);
+					if (amount)
+					{	auto &report = *static_cast<std::map<std::string, std::vector<item_t>> *>(data);
+						auto &items = report[name];
+						items.reserve(g_repeat);
+						items.emplace_back(time, amount, calls_cnt);
+					}
 					return -1;
 				};
 			vi_tmResults(fn, &rep);
 		}
 	}
 
+/*
+	{
+		{	std::cout << "{";
+			std::cout << "\n\t" << std::quoted("Repeat") << ": " << g_repeat << ", ";
+
+			for (auto &&engine : reports)
+			{	std::cout << "\n\t" << std::quoted(engine.first) << ": {";
+				for (auto &&action : engine.second)
+				{	std::cout << "\n\t\t" << std::quoted(action.first) << ": {";
+
+					std::vector<double> data(action.second.size());
+					auto foo = [](const item_t &item) { return static_cast<double>(item.time_); };
+					std::transform(action.second.begin(), action.second.end(), data.begin(), foo);
+
+					const auto stat = misc::calc_stat(data);
+
+					std::cout <<
+						"\n\t\t\t\t\"average\": " << stat.average_ << "," <<
+						"\n\t\t\t\t\"median\": " << stat.median_ << "," <<
+						"\n\t\t\t\t\"min\": " << stat.min_ << "," <<
+						"\n\t\t\t\t\"max\": " << stat.max_ << "," <<
+						"\n\t\t\t\t\"deviation\": " << stat.deviation_;
+
+					std::cout << "\n\t\t},";
+				}
+				std::cout << "\n\t},";
+			}
+			std::cout << "\n}";
+		}
+	}
+/*/
 	{
 		std::map<std::string, std::map<std::string, misc::statistics_t>> result;
-
 		for (auto &&engine : reports)
 		{
 			std::cout << "Engine: \'" << engine.first << "\'\n";
 			for (auto &&action : engine.second)
 			{
 				std::vector<double> data(action.second.size());
-				std::transform(action.second.begin(), action.second.end(), data.begin(), [](const auto &item) { return item.time_; });
+				auto foo = [](const item_t &item) { return static_cast<double>(item.time_); };
+				std::transform(action.second.begin(), action.second.end(), data.begin(), foo);
 
-				std::cout << action.first << ":\t";
+				std::cout << action.first << ";";
 				const auto stat = misc::calc_stat(data);
 
 				std::cout <<
-					stat.average_ << "\t" <<
-					stat.median_ << "\t" <<
-					stat.min_ << "\t" <<
-					stat.max_ << "\t" <<
+					stat.average_ << ';' <<
+					stat.median_ << ';' <<
+					stat.min_ << ';' <<
+					stat.max_ << ';' <<
 					stat.deviation_ << "\n";
 			}
 		}
 	}
-
+//*/
+	endl(std::cout);
 	std::cout << "Hello World!\n";
 }

@@ -183,7 +183,7 @@ extern "C" {
 		(void)VI_STD(atomic_fetch_add_explicit)(itm->item_, end - itm->start_, VI_MEMORY_ORDER(memory_order_relaxed));
 	}
 
-	VI_TM_API void VI_TM_CALL vi_tmWarming(int all, unsigned int ms);
+	VI_TM_API void VI_TM_CALL vi_tmWarming(int all, unsigned int ms, void(*progress)(double, void*) VI_DEFARG(nullptr), void* ud VI_DEFARG(nullptr));
 
 	// Supporting functions. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -237,7 +237,7 @@ namespace vi_tm
 	{	return vi_tmReport(flags, fn, data);
 	}
 
-	inline void warming(bool all = false, unsigned int ms = 500) { vi_tmWarming((all? 1: 0), ms); }
+	inline void warming(bool all = false, unsigned int ms = 500, void(*progress)(double, void*) = nullptr, void* ud = nullptr) { vi_tmWarming((all? 1: 0), ms, progress, ud); }
 
 } // namespace vi_tm {
 

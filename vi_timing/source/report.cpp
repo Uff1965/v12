@@ -51,6 +51,11 @@ using namespace std::literals;
 
 namespace
 {
+	struct thousands_sep_facet_t final : std::numpunct<char>
+	{	char do_thousands_sep() const override { return '\''; }
+		std::string do_grouping() const override { return "\x3"; }
+	};
+
 	constexpr auto operator""_ps(long double v) noexcept { return ch::duration<double, std::pico>(v); };
 	constexpr auto operator""_ps(unsigned long long v) noexcept { return ch::duration<double, std::pico>(v); };
 	constexpr auto operator""_ks(long double v) noexcept { return ch::duration<double, std::kilo>(v); };
@@ -248,31 +253,6 @@ namespace
 	{	return ch::steady_clock::now();
 	}
 
-	void warming(bool all, ch::milliseconds duration)
-	{
-		if (ch::milliseconds::zero() == duration)
-			return;
-
-		std::atomic_bool stop = false; // It must be defined before 'threads'!!!
-		auto thread_function = [&stop] {while (!stop) {/**/ }}; //-V776 "Potentially infinite loop"
-
-		static auto const hwcnt = std::thread::hardware_concurrency();
-		std::vector<std::thread> threads((all && 1 < hwcnt) ? hwcnt - 1 : 0);
-		for (auto& t : threads)
-		{	t = std::thread{ thread_function };
-		}
-
-		for (const auto limit = now() + duration; now() < limit;)
-		{	/*The thread is fully loaded.*/
-		}
-
-		stop = true;
-
-		for (auto& t : threads)
-		{	t.join();
-		}
-	}
-
 	constexpr auto cache_warmup = 5U;
 
 	duration_t seconds_per_tick()
@@ -453,7 +433,7 @@ namespace
 		explicit meterages_t(std::uint32_t flags);
 	};
 
-	const auto _ = (warming(false, 512ms), 0); // Warm-up the CPU before calculating traits.
+	const auto _ = (vi_tmWarming(false, 512), 0); // Warm-up the CPU before calculating traits.
 	const duration_t meterages_t::tick_duration_ = seconds_per_tick();
 	const duration_t meterages_t::call_duration_ = call_duration();
 	const double meterages_t::overmeasure_ = overmeasure();
@@ -562,7 +542,7 @@ namespace
 		std::size_t number_len_{ 0 };
 		mutable std::size_t n_{ 0 };
 
-		struct strings_t
+		struct text_values_t
 		{	std::string number_;
 			std::string name_;
 			std::string average_;
@@ -571,7 +551,7 @@ namespace
 		};
 
 		meterage_format_t(meterages_t& traits, vi_tmLogSTR_t fn, void* data);
-		int print(const strings_t& strings, char fill_name = 0) const;
+		int print(const text_values_t& strings, char fill_name = 0) const;
 		int header() const;
 		int footer() const;
 		int operator ()(int init, const meterages_t::itm_t& i) const;
@@ -579,9 +559,45 @@ namespace
 
 } // namespace {
 
-VI_TM_API void VI_TM_CALL vi_tmWarming(int all, unsigned int ms)
+VI_TM_API void VI_TM_CALL vi_tmWarming(int all, unsigned int ms, void (*progress)(double, void*), void *ud)
 {
-	warming(0 != all, ch::milliseconds{ ms });
+	if (0 == ms)
+		return;
+
+	std::atomic_bool done = false; // It must be defined before 'threads'!!!
+	auto thread_function = [&done] {while (!done) {/**/ }}; //-V776 "Potentially infinite loop"
+
+	const auto threads_amount = (all && std::thread::hardware_concurrency()) ? std::thread::hardware_concurrency(): 1;
+
+	std::vector<std::thread> threads(threads_amount - 1);
+	for (auto& t : threads)
+	{	t = std::thread{ thread_function };
+	}
+
+	const auto duration = ch::milliseconds{ ms };
+	const auto start = ch::steady_clock::now();
+	const auto stop = start + duration;
+	constexpr auto step = 250ms;
+	for (auto check = start + step; check < stop; check += step)
+	{	while (ch::steady_clock::now() < check)
+		{/**/
+		}
+
+		if(progress)
+			progress(ch::duration_cast<ch::duration<double>>(check - start) / duration, ud);
+	}
+	while (ch::steady_clock::now() < stop)
+	{/**/
+	}
+
+	done = true;
+
+	for (auto& t : threads)
+	{	t.join();
+	}
+
+	if(progress)
+		progress(1.0, ud);
 }
 
 meterage_format_t::meterage_format_t(meterages_t& traits, vi_tmLogSTR_t fn, void* data)
@@ -592,7 +608,7 @@ meterage_format_t::meterage_format_t(meterages_t& traits, vi_tmLogSTR_t fn, void
 	}
 }
 
-int meterage_format_t::print(const strings_t& strings, char fill_name) const
+int meterage_format_t::print(const text_values_t& strings, char fill_name) const
 {
 	std::string buffer;
 
@@ -626,12 +642,12 @@ int meterage_format_t::print(const strings_t& strings, char fill_name) const
 	return fn_(buffer.c_str(), data_);
 }
 
-static const meterage_format_t::strings_t empty{};
+static const meterage_format_t::text_values_t empty{};
 
 int meterage_format_t::header() const
 {
 	const auto order = (traits_.flags_ & static_cast<uint32_t>(vi_tmSortAscending)) ? Ascending : Descending;
-	strings_t strings
+	text_values_t strings
 	{	"#",
 		std::string{title_name_},
 		std::string{title_average_},
@@ -674,12 +690,7 @@ int meterage_format_t::footer() const
 int meterage_format_t::operator ()(int init, const meterages_t::itm_t& i) const
 {
 	std::ostringstream str;
-	{	struct thousands_sep_facet_t final : std::numpunct<char>
-		{	char do_thousands_sep() const override { return '\''; }
-			std::string do_grouping() const override { return "\x3"; }
-		};
-
-		str.imbue(std::locale(str.getloc(), new thousands_sep_facet_t)); //-V2511
+	{	str.imbue(std::locale(str.getloc(), new thousands_sep_facet_t)); //-V2511
 		str << i.on_amount_;
 	}
 
@@ -688,7 +699,7 @@ int meterage_format_t::operator ()(int init, const meterages_t::itm_t& i) const
 	constexpr auto rift = 3;
 	const char fill_name = (traits_.items_.size() <= rift || n_ % rift) ? ' ' : '.';
 
-	strings_t strings
+	text_values_t text
 	{	std::to_string(n_),
 		std::string{i.on_name_},
 		i.average_txt_,
@@ -696,7 +707,7 @@ int meterage_format_t::operator ()(int init, const meterages_t::itm_t& i) const
 		str.str()
 	};
 
-	return init + print(strings, fill_name);
+	return init + print(text, fill_name);
 }
 
 VI_TM_API int VI_TM_CALL vi_tmReport(std::uint32_t flags, vi_tmLogSTR_t fn, void* data)
