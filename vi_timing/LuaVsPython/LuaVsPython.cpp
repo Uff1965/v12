@@ -24,7 +24,7 @@ namespace
 #ifdef NDEBUG
 	constexpr auto g_repeat = 20U;
 #else
-	constexpr auto g_repeat = 2U;
+	constexpr auto g_repeat = 1U;
 #endif
 
 	const auto _ =
