@@ -37,13 +37,6 @@ namespace
 		verify(::SetThreadAffinityMask(::GetCurrentThread(), 0b0000'0001)),
 		verify(::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS)),
 		verify(::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL)),
-		//[]
-		//{	if (const auto hOut = ::GetStdHandle(STD_OUTPUT_HANDLE); verify(hOut != NULL && hOut != INVALID_HANDLE_VALUE))
-		//	{	if (DWORD dwMode = 0; FALSE != ::GetConsoleMode(hOut, &dwMode))
-		//		{	verify(FALSE != ::SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING));
-		//		}
-		//	}
-		//}(),
 #endif
 		nullptr
 	);
@@ -91,13 +84,6 @@ struct item_t
 
 int main(int argc, char* argv[])
 {
-//	VI_TM_FUNC;
-
-//	std::locale::global(std::locale(""));
-//	std::locale::global(std::locale{ "", LC_CTYPE });
-//	std::setlocale(LC_CTYPE, "");
-//	std::cout.imbue(std::locale{ "" });
-
 	struct thousands_sep_facet_t final : std::numpunct<char>
 	{	char do_decimal_point() const override { return ','; }
 	};
@@ -141,37 +127,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-/*
-	{
-		{	std::cout << "{";
-			std::cout << "\n\t" << std::quoted("Repeat") << ": " << g_repeat << ", ";
-
-			for (auto &&engine : reports)
-			{	std::cout << "\n\t" << std::quoted(engine.first) << ": {";
-				for (auto &&action : engine.second)
-				{	std::cout << "\n\t\t" << std::quoted(action.first) << ": {";
-
-					std::vector<double> data(action.second.size());
-					auto foo = [](const item_t &item) { return static_cast<double>(item.time_); };
-					std::transform(action.second.begin(), action.second.end(), data.begin(), foo);
-
-					const auto stat = misc::calc_stat(data);
-
-					std::cout <<
-						"\n\t\t\t\t\"average\": " << stat.average_ << "," <<
-						"\n\t\t\t\t\"median\": " << stat.median_ << "," <<
-						"\n\t\t\t\t\"min\": " << stat.min_ << "," <<
-						"\n\t\t\t\t\"max\": " << stat.max_ << "," <<
-						"\n\t\t\t\t\"deviation\": " << stat.deviation_;
-
-					std::cout << "\n\t\t},";
-				}
-				std::cout << "\n\t},";
-			}
-			std::cout << "\n}";
-		}
-	}
-/*/
 	{
 		std::map<std::string, std::map<std::string, misc::statistics_t>> result;
 		for (auto &&engine : reports)
@@ -195,7 +150,7 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-//*/
+
 	endl(std::cout);
 	std::cout << "Hello World!\n";
 }
