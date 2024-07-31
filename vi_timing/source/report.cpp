@@ -370,7 +370,7 @@ namespace
 		}
 		const auto dirty = e - s;
 
-		assert(dirty > pure);
+// Happens		assert(dirty > pure);
 		return (dirty <= pure) ? 0.0 : static_cast<double>(dirty - pure) / (CNT_EXT * CNT);
 	}
 

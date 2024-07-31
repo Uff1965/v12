@@ -180,11 +180,11 @@ void test_lua_t::WorkBubbleSortRun(const char* tm, void*, bool desc) const
 {	
 	{	VI_TM(tm);
 		const int nargs = desc? 2: 1; // Количество аргументов для функции bubble_sort
-		assert(nargs == lua_gettop(L_)); // Аргументы уже на стеке
+		assert(nargs == lua_gettop(L_)); // Аргументы были помещены на стек в ф-ии WorkBubbleSortPreparingArguments.
 		verify(LUA_TFUNCTION == lua_getglobal(L_, bubble_sort_func_name)); // Помещаем функцию bubble_sort на вершину стека
-		lua_insert(L_, -(nargs + 1)); // перемещаем функцию под аргументы
+		lua_insert(L_, -(nargs + 1)); // перемещаем её под аргументы
 		assert(1 + nargs == lua_gettop(L_)); // На стеке: ф-я и аргументы
-		verify(LUA_OK == lua_pcall(L_, nargs, 1, 0));
+		verify(LUA_OK == lua_pcall(L_, nargs, 1, 0)); // вызываем функцию bubble_sort с аргументами
 		assert(1 == lua_gettop(L_) && LUA_TTABLE == lua_type(L_, -1)); // На стеке остался результат
 	}
 
@@ -192,12 +192,12 @@ void test_lua_t::WorkBubbleSortRun(const char* tm, void*, bool desc) const
 	auto const sample = desc? sample_descending_sorted: sample_ascending_sorted;
 	lua_pushnil(L_); // Первый ключ
 	while (lua_next(L_, -2) != 0)
-	{	assert(3 == lua_gettop(L_) && lua_isinteger(L_, -2) && lua_isnumber(L_, -1)); // Таблица, ключ, значение
+	{	assert(3 == lua_gettop(L_) && LUA_TTABLE == lua_type(L_, -3) && lua_isinteger(L_, -2) && lua_isnumber(L_, -1)); // Таблица, ключ, значение
 		const auto k = lua_tointeger(L_, -2); // Индекс в таблице
 		const auto v = lua_tointeger(L_, -1); // Значение
 		assert(sample[k - 1] == v); // Проверяем, что значение в таблице совпадает с эталоном
 		lua_pop(L_, 1); // Удаляем значение, оставляем ключ для следующего lua_next
 	}
-	lua_pop(L_, 1); // Удаляем таблицу
+	lua_pop(L_, 1); // Удаляем таблицу, ключ уже удалён в lua_next
 	assert(0 == lua_gettop(L_));
 }
