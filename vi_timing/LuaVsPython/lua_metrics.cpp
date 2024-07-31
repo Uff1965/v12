@@ -170,7 +170,7 @@ void* test_lua_t::WorkBubbleSortPreparingArguments(const char* tm, bool desc) co
 	assert(1 == lua_gettop(L_) && LUA_TTABLE == lua_type(L_, -1)); // На стеке таблица
 
 	if (desc)
-	{	lua_pushcfunction(L_, c_descending); // добавляем функцию сравнения
+	{	lua_pushcfunction(L_, c_descending); // добавляем в аргументы функцию сравнения
 		assert(2 == lua_gettop(L_)); // На стеке: таблица и компаратор
 	}
 	return nullptr;
