@@ -52,7 +52,7 @@ extern "C"
 {
 	// c_ascending - C-функция которая будет зарегистрирована в Python под именем "c_ascending" и будет использована внутри скрипта
 	static PyObject *c_ascending(PyObject *, PyObject *args)
-	{	assert(PyTuple_Check(args) && 2 == PyTuple_Size(args));
+	{	assert(args && PyTuple_Check(args) && 2 == PyTuple_Size(args));
 		int l, r;
 		const auto ret = PyArg_ParseTuple(args, "ii", &l, &r); // Парсим аргументы
 		return verify(0 != ret) ? PyBool_FromLong(l < r) : nullptr;
@@ -60,7 +60,7 @@ extern "C"
 
 	// c_descending - C-функция которая будет передана из C-кода в Python-скрипт в качестве аргумента функции bubble_sort
 	static PyObject *c_descending(PyObject *, PyObject *args)
-	{	assert(PyTuple_Check(args) && 2 == PyTuple_Size(args));
+	{	assert(args && PyTuple_Check(args) && 2 == PyTuple_Size(args));
 		int l, r;
 		const auto ret = PyArg_ParseTuple(args, "ii", &l, &r);
 		return  verify(0 != ret) ? PyBool_FromLong(r < l) : nullptr;
@@ -86,7 +86,7 @@ struct test_python_t final: test_interface_t
 	void* WorkBubbleSortPreparingArguments(const char* tm, bool descending) const override;
 	void WorkBubbleSortRun(const char* tm, void* py_args, bool descending) const override;
 
-	mutable PyObject *dict_ = nullptr;
+	mutable PyObject *py_dict_ = nullptr;
 
 	inline static const auto _ = registrar(std::make_unique<test_python_t>());
 };
@@ -99,7 +99,7 @@ void test_python_t::InitializeEngine(const char* tm) const
 void* test_python_t::CompileScript(const char* tm) const
 {	VI_TM(tm);
 	auto result = Py_CompileString(script_.c_str(), "sample.py", Py_file_input);
-	assert(result);
+	assert(result && PyCode_Check(result));
 	return result;
 }
 
@@ -108,7 +108,7 @@ std::string test_python_t::ExportCode(const char* tm, void* code) const
 	auto py_code = static_cast<PyObject*>(code);
 	assert(py_code && PyCode_Check(py_code));
 	auto py_buffer = PyMarshal_WriteObjectToString(py_code, Py_MARSHAL_VERSION); // Сериализуем код
-	assert(py_buffer);
+	assert(py_buffer && PyBytes_Check(py_buffer));
 	Py_DECREF(py_code); // Удаляем скомпилированный код
 	char *buffer = nullptr;
 	Py_ssize_t buffer_size = 0;
@@ -121,18 +121,18 @@ std::string test_python_t::ExportCode(const char* tm, void* code) const
 void* test_python_t::ImportCode(const char* tm, const std::string &code) const
 {	VI_TM(tm);
 	auto result = PyMarshal_ReadObjectFromString(code.data(), code.size()); // Десериализуем код
-	assert(result);
+	assert(result && PyCode_Check(result));
 	return result;
 }
 
 void test_python_t::ExecutionScript(const char* tm, void* code) const
 {	VI_TM(tm);
 	auto py_code = static_cast<PyObject*>(code);
-	assert(PyCode_Check(py_code));
-	verify(dict_ = PyDict_New());
-	auto py_module = PyEval_EvalCode(py_code, dict_, nullptr);
-	assert(py_module);
-	Py_DECREF(py_module);
+	assert(py_code && PyCode_Check(py_code));
+	verify(py_dict_ = PyDict_New());
+	auto py_result = PyEval_EvalCode(py_code, py_dict_, nullptr);
+	assert(Py_None == py_result); // Наш скрипт не возвращает никаких значений.
+	Py_DECREF(py_result);
 	Py_DECREF(py_code);
 }
 
@@ -144,22 +144,22 @@ void test_python_t::FunctionRegister(const char* tm) const
 		METH_VARARGS, // Тип аргументов
 		nullptr // Документация
 	};
-	auto func = PyCFunction_NewEx(&func_def, NULL, NULL);
-	assert(func);
-	verify(0 == PyDict_SetItemString(dict_, "c_ascending", func));
-	Py_DECREF(func);
+	auto py_func = PyCFunction_New(&func_def, nullptr);
+	assert(py_func && PyCFunction_Check(py_func));
+	verify(0 == PyDict_SetItemString(py_dict_, "c_ascending", py_func));
+	Py_DECREF(py_func);
 }
 
 void test_python_t::FinalizeEngine(const char* tm) const
 {	VI_TM(tm);
-	Py_DECREF(dict_);
-	dict_ = nullptr;
+	Py_DECREF(py_dict_);
+	py_dict_ = nullptr;
 	verify(0 == Py_FinalizeEx()); // Завершаем работу интерпретатора
 }
 
 void test_python_t::WorkGetGlobalString(const char* tm) const
 {	VI_TM(tm);
-	auto p = PyDict_GetItemString(dict_, global_string_name);
+	auto p = PyDict_GetItemString(py_dict_, global_string_name);
 	assert(p);
 	char* sz = nullptr;
 	verify(0 != PyArg_Parse(p, "s", &sz));
@@ -168,7 +168,7 @@ void test_python_t::WorkGetGlobalString(const char* tm) const
 
 void test_python_t::WorkCallEmptyFunction(const char* tm) const
 {	VI_TM(tm);
-	auto func = PyDict_GetItemString(dict_, empty_func_name);
+	auto func = PyDict_GetItemString(py_dict_, empty_func_name);
 	assert(func);
 	auto ret = PyObject_CallNoArgs(func);
 	assert(ret);
@@ -206,7 +206,7 @@ void test_python_t::WorkBubbleSortRun(const char* tm, void *args, bool desc) con
 	{	VI_TM(tm);
 		auto py_args = static_cast<PyObject*>(args);
 		assert(PyTuple_Check(py_args));
-		auto func = PyDict_GetItemString(dict_, bubble_sort_func_name);
+		auto func = PyDict_GetItemString(py_dict_, bubble_sort_func_name);
 		assert(func && PyCallable_Check(func));
 		verify(result = PyObject_CallObject(func, py_args));
 		Py_DECREF(py_args);

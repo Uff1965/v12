@@ -101,20 +101,20 @@ void test_lua_t::InitializeEngine(const char *tm) const
 void* test_lua_t::CompileScript(const char* tm) const
 {	VI_TM(tm);
 	verify(LUA_OK == luaL_loadstring(L_, script_.c_str()));
-	assert(1 == lua_gettop(L_)); // На стеке скрипт
+	assert(1 == lua_gettop(L_) && lua_isfunction(L_, -1)); // На стеке P-code
 	return nullptr;
 }
 
 std::string test_lua_t::ExportCode(const char* tm, void*) const
 {	VI_TM(tm);
+	assert(1 ==	lua_gettop(L_) && lua_isfunction(L_, -1));
 	auto writer = [](lua_State*, const void* p, std::size_t sz, void* ud)
-		{	auto& str = *static_cast<std::string*>(ud);
-			str.append(static_cast<const char*>(p), sz);
+		{	static_cast<std::string*>(ud)->append(static_cast<const char*>(p), sz);
 			return 0;
 		};
 	std::string result;
 	verify(LUA_OK == lua_dump(L_, writer, &result, 0));
-	lua_pop(L_, 1);
+	lua_pop(L_, 1); // Удаляем P-code из стека
 	assert(0 == lua_gettop(L_)); // Стек пуст
 	return result;
 }
@@ -122,13 +122,15 @@ std::string test_lua_t::ExportCode(const char* tm, void*) const
 void* test_lua_t::ImportCode(const char* tm, const std::string& p_code) const
 {	VI_TM(tm);
 	verify(LUA_OK == luaL_loadbuffer(L_, p_code.data(), p_code.size(), "<script>"));
-	assert(1 == lua_gettop(L_)); // На стеке скрипт
+	assert(1 == lua_gettop(L_) && lua_isfunction(L_, -1)); // На стеке P-code
 	return nullptr;
 }
 
 void test_lua_t::ExecutionScript(const char* tm, void*) const
 {	VI_TM(tm);
+	assert(1 == lua_gettop(L_) && lua_isfunction(L_, -1)); // На стеке P-code
 	verify(LUA_OK == lua_pcall(L_, 0, 0, 0));
+	assert(0 == lua_gettop(L_)); // Стек пуст
 }
 
 void test_lua_t::FunctionRegister(const char* tm) const

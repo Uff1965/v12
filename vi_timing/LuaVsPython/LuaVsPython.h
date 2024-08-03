@@ -63,7 +63,7 @@ inline void test_interface_t::test() const
 	InitializeEngine("1. Initialize");
 	auto code = CompileScript("2. Compile");
 	{
-		std::string p_code = ExportCode("3. Export P-code", code);
+		const std::string p_code = ExportCode("3. Export P-code", code);
 		code = nullptr;
 		code = ImportCode("4. Import P-code", p_code);
 	}
