@@ -68,6 +68,7 @@ struct test_c_t final: test_interface_t
 	void InitializeEngine(const char* tm) const override;
 	void* CompileScript(const char* tm) const override;
 	std::string ExportCode(const char* tm, void*) const override;
+	void RestartEngine(const char* tm) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void*) const override;
 	void FunctionRegister(const char* tm) const override;
@@ -98,6 +99,10 @@ std::string test_c_t::ExportCode(const char* tm, void*) const
 void* test_c_t::ImportCode(const char* tm, const std::string& p_code) const
 {	VI_TM(tm);
 	return nullptr;
+}
+
+void test_c_t::RestartEngine(const char *tm) const
+{	VI_TM(tm);
 }
 
 void test_c_t::ExecutionScript(const char* tm, void*) const

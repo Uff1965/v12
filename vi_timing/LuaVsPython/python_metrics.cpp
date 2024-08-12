@@ -1,9 +1,9 @@
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 
-// https://docs.python.org/3/extending/index.html
 // https://docs.python.org/3/extending/embedding.html
 // https://docs.python.org/3/c-api/index.html
+// https://docs.python.org/3/library/marshal.html
 
 #include "header.h"
 #include "LuaVsPython.h"
@@ -14,6 +14,7 @@
 #include <marshal.h> // For PyMarshal_WriteObjectToString, PyMarshal_ReadObjectFromString
 
 #include <cassert>
+#include <vector>
 
 #ifndef _DLL
 	#error "For the PyRun_SimpleFile function to work, the MS RTL must be loaded from a DLL (MS compiler option: /MD or /MDd). Established experimentally on Python v.3.12.2"
@@ -67,15 +68,18 @@ extern "C"
 	}
 }
 
-struct test_python_t final: test_interface_t
+struct test_python_t: test_interface_t
 {
+	inline static const auto _ = registrar(std::make_unique<test_python_t>());
 	const std::string script_ = read_file(script_path);
+	mutable PyObject *py_dict_ = nullptr;
 
 	std::string title() const override { return "PYTHON"; };
 
 	void InitializeEngine(const char* tm) const override;
 	void* CompileScript(const char* tm) const override;
 	std::string ExportCode(const char* tm, void* py_obj) const override;
+	void RestartEngine(const char* tm) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void* py_obj) const override;
 	void FunctionRegister(const char* tm) const override;
@@ -85,15 +89,12 @@ struct test_python_t final: test_interface_t
 	void WorkCallEmptyFunction(const char* tm) const override;
 	void* WorkBubbleSortPreparingArguments(const char* tm, bool descending) const override;
 	void WorkBubbleSortRun(const char* tm, void* py_args, bool descending) const override;
-
-	mutable PyObject *py_dict_ = nullptr;
-
-	inline static const auto _ = registrar(std::make_unique<test_python_t>());
 };
 
 void test_python_t::InitializeEngine(const char* tm) const
 {	VI_TM(tm);
-	Py_Initialize();
+	Py_InitializeEx(1);
+	assert(Py_IsInitialized());
 }
 
 void* test_python_t::CompileScript(const char* tm) const
@@ -116,6 +117,15 @@ std::string test_python_t::ExportCode(const char* tm, void* code) const
 	std::string result(buffer, buffer_size);
 	Py_DECREF(py_buffer);
 	return result;
+}
+
+void test_python_t::RestartEngine(const char* tm) const
+{	VI_TM(tm);
+	assert(Py_IsInitialized());
+	verify(0 == Py_FinalizeEx());
+	assert(!Py_IsInitialized());
+	Py_InitializeEx(1);
+	assert(Py_IsInitialized());
 }
 
 void* test_python_t::ImportCode(const char* tm, const std::string &code) const
@@ -155,14 +165,15 @@ void test_python_t::FinalizeEngine(const char* tm) const
 	Py_DECREF(py_dict_);
 	py_dict_ = nullptr;
 	verify(0 == Py_FinalizeEx()); // Завершаем работу интерпретатора
+	assert(!Py_IsInitialized());
 }
 
 void test_python_t::WorkGetGlobalString(const char* tm) const
 {	VI_TM(tm);
-	auto p = PyDict_GetItemString(py_dict_, global_string_name);
-	assert(p);
+	auto py_string = PyDict_GetItemString(py_dict_, global_string_name);
+	assert(py_string);
 	char* sz = nullptr;
-	verify(0 != PyArg_Parse(p, "s", &sz));
+	verify(0 != PyArg_Parse(py_string, "s", &sz));
 	assert(sz && 0 == strcmp(sz, global_string_sample));
 }
 
@@ -215,11 +226,27 @@ void test_python_t::WorkBubbleSortRun(const char* tm, void *args, bool desc) con
 	// Проверяем результат
 	auto &smpl = desc? sample_descending_sorted: sample_ascending_sorted;
 	for (auto&& i : smpl)
-	{	auto obj = PyList_GetItem(result, &i - smpl);
+	{	auto obj = PyList_GetItem(result, &i - smpl.data());
 		assert(obj);
 		int val = 0;
 		verify(0 != PyArg_Parse(obj, "i", &val));
 		assert(val == i);
 	}
 	Py_DECREF(result);
+}
+
+struct test_python_mt_t: test_python_t
+{
+	std::string title() const override { return "LUA MT"; };
+
+	void test() const override;
+
+//	inline static const auto _ = registrar(std::make_unique<test_python_mt_t>());
+};
+
+void test_python_mt_t::test() const
+{
+	std::vector<std::jthread> arr(2 * std::thread::hardware_concurrency());
+	for (auto &&t : arr)
+		t = std::jthread([] { test_python_t i; i.test(); });
 }

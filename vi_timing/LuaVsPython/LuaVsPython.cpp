@@ -10,6 +10,7 @@
 
 #include <vi_timing/timing.h>
 
+#include <array>
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -21,22 +22,17 @@ using namespace std::literals;
 
 namespace
 {
-#ifdef NDEBUG
-	constexpr auto g_repeat = 20U;
-#else
-	constexpr auto g_repeat = 1U;
-#endif
-
 	const auto _ =
 	(
 #if defined(_MSC_VER) && defined(_DEBUG)
+//		_CrtSetBreakAlloc(311), // To set a breakpoint at the specified memory allocation number
 		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF), // To automatically call the _CrtDumpMemoryLeaks function when the program ends
 		verify(-1 != _set_error_mode(_OUT_TO_MSGBOX)), // Error sink is a message box. To be able to ignore errors in debugging sessions.
 #endif
 #ifdef WIN32
-		verify(::SetThreadAffinityMask(::GetCurrentThread(), 0b0000'0001)),
-		verify(::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS)),
-		verify(::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL)),
+//		verify(::SetThreadAffinityMask(::GetCurrentThread(), 0b0000'0001)), // To bind the thread to the first processor
+		verify(::SetPriorityClass(::GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS)), // To increase the priority of the process
+		verify(::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL)), // To increase the priority of the thread
 #endif
 		nullptr
 	);
@@ -45,34 +41,39 @@ namespace
 	//VI_TM("Well, that's all!");
 	const auto initializing_global_variables_can_also_take_time = []{std::this_thread::sleep_for(1ms); return 0;}();
 
-	int raw[sample_size];
-	int ascending[sample_size];
-	static_assert(std::size(raw) == std::size(ascending));
-	int descending[sample_size];
-	static_assert(std::size(raw) == std::size(descending));
+	// Sample data for testing the bubble_sort functions
+	std::array<int, sample_size> raw_data;
+	std::array<int, sample_size> ascending_data;
+	std::array<int, sample_size> descending_data;
 	const auto _sample_init = []
 	{	std::mt19937 gen{/*std::random_device{}()*/ }; // For ease of debugging, the sequence is stable.
 		std::uniform_int_distribution distrib{ 1, 1'000 };
 
-		std::ranges::generate(raw, [&] { return distrib(gen); });
-		std::ranges::copy(raw, ascending);
-		std::ranges::sort(ascending);
-		std::ranges::reverse_copy(ascending, descending);
+		std::ranges::generate(raw_data, [&] { return distrib(gen); });
+		std::ranges::copy(raw_data, ascending_data.begin());
+		std::ranges::sort(ascending_data);
+		std::ranges::reverse_copy(ascending_data, descending_data.begin());
 		return nullptr;
 	}();
 
+#ifdef NDEBUG
+	constexpr auto g_repeat = 20U;
+#else
+	constexpr auto g_repeat = 1U;
+#endif
+
 } // namespace
 
-const int(&sample_raw)[sample_size] = raw;
-const int(&sample_ascending_sorted)[sample_size] = ascending;
-const int(&sample_descending_sorted)[sample_size] = descending;
+const std::array<int, sample_size> &sample_raw = raw_data;
+const std::array<int, sample_size> &sample_ascending_sorted = ascending_data;
+const std::array<int, sample_size> &sample_descending_sorted = descending_data;
 
-auto& Items()
+auto& TestItems()
 {	static std::vector<std::unique_ptr<const test_t>> items;
 	return items;
 }
 bool test_t::registrar(std::unique_ptr<test_t> p)
-{	Items().emplace_back(std::move(p));
+{	TestItems().emplace_back(std::move(p));
 	return true;
 }
 
@@ -91,7 +92,7 @@ int main(int argc, char* argv[])
 
 	vi_tm::warming();
 
-	for (const auto &t : Items())
+	for (const auto &t : TestItems())
 	{	t->test(); // Подгружаем весь код из библиотек.
 	}
 
@@ -103,7 +104,7 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "Repeat: " << n + 1 << " of " << g_repeat << "\n";
 
-		for (const auto &t : Items())
+		for (const auto &t : TestItems())
 		{	std::cout << "Engine: \'" << t->title() << "\'\n";
 
 			VI_TM_CLEAR();

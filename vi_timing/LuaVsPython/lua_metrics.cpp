@@ -12,6 +12,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+#include <vector>
+
 namespace
 {
 	constexpr char script_path[] = "sample.lua";
@@ -67,7 +69,7 @@ extern "C"
 	}
 }
 
-struct test_lua_t final: test_interface_t
+struct test_lua_t: test_interface_t
 {
 	const std::string script_ = read_file(script_path);
 
@@ -76,6 +78,7 @@ struct test_lua_t final: test_interface_t
 	void InitializeEngine(const char* tm) const override;
 	void* CompileScript(const char* tm) const override;
 	std::string ExportCode(const char* tm, void*) const override;
+	void RestartEngine(const char* tm) const override;
 	void* ImportCode(const char* tm, const std::string& p_code) const override;
 	void ExecutionScript(const char* tm, void*) const override;
 	void FunctionRegister(const char* tm) const override;
@@ -117,6 +120,14 @@ std::string test_lua_t::ExportCode(const char* tm, void*) const
 	lua_pop(L_, 1); // Удаляем P-code из стека
 	assert(0 == lua_gettop(L_)); // Стек пуст
 	return result;
+}
+
+void test_lua_t::RestartEngine(const char *tm) const
+{	VI_TM(tm);
+	lua_close(L_);
+	verify(L_ = luaL_newstate());
+	luaL_openlibs(L_);
+	assert(0 == lua_gettop(L_)); // Стек пуст
 }
 
 void* test_lua_t::ImportCode(const char* tm, const std::string& p_code) const
@@ -202,4 +213,20 @@ void test_lua_t::WorkBubbleSortRun(const char* tm, void*, bool desc) const
 	}
 	lua_pop(L_, 1); // Удаляем таблицу, ключ уже удалён в lua_next
 	assert(0 == lua_gettop(L_));
+}
+
+struct test_lua_mt_t: test_lua_t
+{
+	std::string title() const override { return "LUA MT"; };
+
+	void test() const override;
+
+	inline static const auto _ = registrar(std::make_unique<test_lua_mt_t>());
+};
+
+void test_lua_mt_t::test() const
+{
+	std::vector<std::jthread> arr(2 * std::thread::hardware_concurrency());
+	for (auto &&t : arr)
+		t = std::jthread([] { test_lua_t i; i.test(); });
 }
